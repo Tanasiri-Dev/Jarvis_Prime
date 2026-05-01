@@ -47,6 +47,24 @@ export interface FactoryClockResultPayload {
   remainingLabel: string;
 }
 
+export interface DurationRequestPayload {
+  startTimestamp: string;
+  endTimestamp: string;
+  breakMinutes: number;
+}
+
+export interface DurationResultPayload {
+  grossMs: number;
+  breakMs: number;
+  netMs: number;
+  grossLabel: string;
+  breakLabel: string;
+  netLabel: string;
+  startLabel: string;
+  endLabel: string;
+  crossesMidnight: boolean;
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;

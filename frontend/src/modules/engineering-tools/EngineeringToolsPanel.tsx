@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type {
+  DurationResultPayload,
   FactoryClockResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
@@ -21,12 +22,13 @@ type StopwatchLap = {
   timestamp: string;
 };
 
-type ActiveTool = "workweek" | "factory-clock" | "stopwatch";
+type ActiveTool = "workweek" | "duration" | "factory-clock" | "stopwatch";
 
 type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
 
 const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = [
   { id: "workweek", label: "WorkWeek", category: "Time and shift" },
+  { id: "duration", label: "Duration Calculator", category: "Time and shift" },
   { id: "factory-clock", label: "Factory Clock", category: "Clock" },
   { id: "stopwatch", label: "Stopwatch", category: "Manufacturing" },
 ];
@@ -139,13 +141,21 @@ function exportStopwatchHistory(laps: StopwatchLap[]): void {
 export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps) {
   const [activeTool, setActiveTool] = useState<ActiveTool>("workweek");
   const [timestamp, setTimestamp] = useState(() => toDatetimeLocalValue(new Date()));
+  const [durationStart, setDurationStart] = useState(() => toDatetimeLocalValue(new Date()));
+  const [durationEnd, setDurationEnd] = useState(() =>
+    toDatetimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)),
+  );
+  const [breakMinutes, setBreakMinutes] = useState(0);
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
   const [shiftLengthHours, setShiftLengthHours] = useState(12);
   const [result, setResult] = useState<WeekShiftResultPayload | null>(null);
+  const [durationResult, setDurationResult] = useState<DurationResultPayload | null>(null);
   const [clock, setClock] = useState<FactoryClockResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
+  const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
   const [clockStatus, setClockStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [durationError, setDurationError] = useState<string | null>(null);
   const [clockError, setClockError] = useState<string | null>(null);
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
@@ -186,6 +196,14 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     }),
     [dayShiftStartHour, shiftLengthHours, timestamp],
   );
+  const durationPayload = useMemo(
+    () => ({
+      startTimestamp: durationStart,
+      endTimestamp: durationEnd,
+      breakMinutes,
+    }),
+    [breakMinutes, durationEnd, durationStart],
+  );
 
   useEffect(() => {
     let isCurrent = true;
@@ -216,6 +234,36 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [requestPayload, workerHost]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setDurationStatus("running");
+    setDurationError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<DurationResultPayload>("compute", "tool:duration", durationPayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+          setDurationResult(payload);
+          setDurationStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+          setDurationStatus("error");
+          setDurationError(reason instanceof Error ? reason.message : "Unable to calculate duration.");
+        });
+    }, 120);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [durationPayload, workerHost]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -394,6 +442,74 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <span>Day</span>
               <strong>{result?.dayName ?? "--"}</strong>
             </div>
+          </div>
+        </article>
+        ) : null}
+
+        {activeTool === "duration" ? (
+        <article className="panel tool-card duration-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Time and shift</p>
+              <h3>Duration Calculator</h3>
+            </div>
+            <span className={`status-chip status-${durationStatus}`}>{durationStatus}</span>
+          </div>
+
+          <div className="tool-form duration-form">
+            <label>
+              <span>Start</span>
+              <input
+                type="datetime-local"
+                value={durationStart}
+                onChange={(event) => setDurationStart(event.target.value)}
+              />
+            </label>
+
+            <label>
+              <span>End</span>
+              <input
+                type="datetime-local"
+                value={durationEnd}
+                onChange={(event) => setDurationEnd(event.target.value)}
+              />
+            </label>
+
+            <label>
+              <span>Break minutes</span>
+              <input
+                min={0}
+                type="number"
+                value={breakMinutes}
+                onChange={(event) => setBreakMinutes(Number(event.target.value))}
+              />
+            </label>
+          </div>
+
+          {durationError ? <div className="error-note">{durationError}</div> : null}
+
+          <div className="result-grid duration-result-grid" aria-live="polite">
+            <div className="result-tile emphasis-tile">
+              <span>Net duration</span>
+              <strong>{durationResult?.netLabel ?? "--"}</strong>
+            </div>
+            <div className="result-tile">
+              <span>Gross duration</span>
+              <strong>{durationResult?.grossLabel ?? "--"}</strong>
+            </div>
+            <div className="result-tile">
+              <span>Break</span>
+              <strong>{durationResult?.breakLabel ?? "--"}</strong>
+            </div>
+            <div className="result-tile">
+              <span>Crosses midnight</span>
+              <strong>{durationResult?.crossesMidnight ? "Yes" : "No"}</strong>
+            </div>
+          </div>
+
+          <div className="duration-summary">
+            <span>Start: {durationResult?.startLabel ?? "--"}</span>
+            <span>End: {durationResult?.endLabel ?? "--"}</span>
           </div>
         </article>
         ) : null}

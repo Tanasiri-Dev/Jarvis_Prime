@@ -1,4 +1,6 @@
 import type {
+  DurationRequestPayload,
+  DurationResultPayload,
   FactoryClockRequestPayload,
   FactoryClockResultPayload,
   WeekShiftRequestPayload,
@@ -27,6 +29,18 @@ const toTime = (date: Date): string =>
 
 const toUtcTime = (date: Date): string =>
   `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())} UTC`;
+
+const toDurationLabel = (milliseconds: number): string => {
+  const totalMinutes = Math.max(0, Math.round(milliseconds / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) {
+    return `${minutes} min`;
+  }
+
+  return `${hours} hr ${minutes} min`;
+};
 
 type ShiftDetails = WeekShiftResultPayload & {
   shiftEndDate: Date;
@@ -147,6 +161,34 @@ function calculateFactoryClock(payload: FactoryClockRequestPayload): FactoryCloc
   };
 }
 
+function calculateDuration(payload: DurationRequestPayload): DurationResultPayload {
+  const start = new Date(payload.startTimestamp);
+  const end = new Date(payload.endTimestamp);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new Error("Invalid start or end date/time input.");
+  }
+
+  const breakMinutes = Number.isFinite(payload.breakMinutes)
+    ? Math.max(0, Math.trunc(payload.breakMinutes))
+    : 0;
+  const grossMs = Math.max(0, end.getTime() - start.getTime());
+  const breakMs = Math.min(grossMs, breakMinutes * 60000);
+  const netMs = Math.max(0, grossMs - breakMs);
+
+  return {
+    grossMs,
+    breakMs,
+    netMs,
+    grossLabel: toDurationLabel(grossMs),
+    breakLabel: toDurationLabel(breakMs),
+    netLabel: toDurationLabel(netMs),
+    startLabel: toLocalDateTime(start),
+    endLabel: toLocalDateTime(end),
+    crossesMidnight: start.toDateString() !== end.toDateString(),
+  };
+}
+
 scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
   const message = event.data;
 
@@ -165,6 +207,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:factory-clock") {
       const payload = calculateFactoryClock(message.payload as FactoryClockRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:factory-clock:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:duration") {
+      const payload = calculateDuration(message.payload as DurationRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:duration:result", payload });
       return;
     }
 
