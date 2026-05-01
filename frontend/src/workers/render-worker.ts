@@ -2,6 +2,7 @@ import type {
   RenderInitPayload,
   RenderResizePayload,
   RenderStatsPayload,
+  RenderThemePayload,
   WorkerEnvelope,
   WorkerNotification,
 } from "../core/worker-messages";
@@ -29,6 +30,68 @@ let lastFrameAt = performance.now();
 let lastStatsAt = performance.now();
 let framesSinceStats = 0;
 let lastFrameMs = 0;
+
+type RenderThemeName = RenderThemePayload["theme"];
+
+type RenderPalette = {
+  background: string;
+  backgroundAccent?: string;
+  grid: string;
+  track: string;
+  accentStart: string;
+  accentMiddle: string;
+  accentEnd: string;
+  text: string;
+  muted: string;
+  badgeBackground: string;
+  badgeBorder: string;
+  badgeText: string;
+};
+
+const renderPalettes: Record<RenderThemeName, RenderPalette> = {
+  dark: {
+    background: "#101722",
+    grid: "rgba(148, 163, 184, 0.13)",
+    track: "rgba(71, 85, 105, 0.7)",
+    accentStart: "#7dd3fc",
+    accentMiddle: "#86efac",
+    accentEnd: "#facc15",
+    text: "#e2e8f0",
+    muted: "#94a3b8",
+    badgeBackground: "rgba(134, 239, 172, 0.15)",
+    badgeBorder: "rgba(134, 239, 172, 0.35)",
+    badgeText: "#bbf7d0",
+  },
+  white: {
+    background: "#f8fbff",
+    grid: "rgba(71, 85, 105, 0.12)",
+    track: "rgba(148, 163, 184, 0.56)",
+    accentStart: "#0284c7",
+    accentMiddle: "#059669",
+    accentEnd: "#ca8a04",
+    text: "#0f172a",
+    muted: "#475569",
+    badgeBackground: "rgba(5, 150, 105, 0.11)",
+    badgeBorder: "rgba(5, 150, 105, 0.28)",
+    badgeText: "#047857",
+  },
+  gradient: {
+    background: "#0d1420",
+    backgroundAccent: "#18263a",
+    grid: "rgba(203, 213, 225, 0.12)",
+    track: "rgba(100, 116, 139, 0.68)",
+    accentStart: "#38bdf8",
+    accentMiddle: "#34d399",
+    accentEnd: "#f59e0b",
+    text: "#f8fafc",
+    muted: "#b8c4d8",
+    badgeBackground: "rgba(45, 212, 191, 0.14)",
+    badgeBorder: "rgba(45, 212, 191, 0.34)",
+    badgeText: "#ccfbf1",
+  },
+};
+
+let activeTheme: RenderThemeName = "dark";
 
 const requestFrame = (callback: FrameRequestCallback): void => {
   if (scope.requestAnimationFrame) {
@@ -70,6 +133,7 @@ const draw = (now: number): void => {
     return;
   }
 
+  const palette = renderPalettes[activeTheme];
   const centerX = width * 0.5;
   const centerY = height * 0.52;
   const radius = Math.max(72, Math.min(width, height) * 0.28);
@@ -77,10 +141,18 @@ const draw = (now: number): void => {
   const progress = 0.64 + pulse * 0.22;
 
   context.clearRect(0, 0, width, height);
-  context.fillStyle = "#101722";
+  if (palette.backgroundAccent) {
+    const background = context.createLinearGradient(0, 0, width, height);
+    background.addColorStop(0, palette.background);
+    background.addColorStop(0.52, palette.backgroundAccent);
+    background.addColorStop(1, palette.background);
+    context.fillStyle = background;
+  } else {
+    context.fillStyle = palette.background;
+  }
   context.fillRect(0, 0, width, height);
 
-  context.strokeStyle = "rgba(148, 163, 184, 0.13)";
+  context.strokeStyle = palette.grid;
   context.lineWidth = 1;
   for (let x = 0; x < width; x += 32) {
     context.beginPath();
@@ -97,37 +169,37 @@ const draw = (now: number): void => {
 
   context.lineCap = "round";
   context.lineWidth = 18;
-  context.strokeStyle = "rgba(71, 85, 105, 0.7)";
+  context.strokeStyle = palette.track;
   context.beginPath();
   context.arc(centerX, centerY, radius, Math.PI * 0.78, Math.PI * 2.22);
   context.stroke();
 
   const gradient = context.createLinearGradient(centerX - radius, centerY, centerX + radius, centerY);
-  gradient.addColorStop(0, "#7dd3fc");
-  gradient.addColorStop(0.55, "#86efac");
-  gradient.addColorStop(1, "#facc15");
+  gradient.addColorStop(0, palette.accentStart);
+  gradient.addColorStop(0.55, palette.accentMiddle);
+  gradient.addColorStop(1, palette.accentEnd);
 
   context.strokeStyle = gradient;
   context.beginPath();
   context.arc(centerX, centerY, radius, Math.PI * 0.78, Math.PI * (0.78 + progress * 1.44));
   context.stroke();
 
-  context.fillStyle = "#e2e8f0";
+  context.fillStyle = palette.text;
   context.font = "700 34px Inter, system-ui, sans-serif";
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.fillText("Worker FBO", centerX, centerY - 4);
 
-  context.fillStyle = "#94a3b8";
+  context.fillStyle = palette.muted;
   context.font = "500 14px Inter, system-ui, sans-serif";
   context.fillText("OffscreenCanvas render loop", centerX, centerY + 34);
 
-  context.fillStyle = "rgba(134, 239, 172, 0.15)";
+  context.fillStyle = palette.badgeBackground;
   context.fillRect(24, 24, 138, 34);
-  context.strokeStyle = "rgba(134, 239, 172, 0.35)";
+  context.strokeStyle = palette.badgeBorder;
   context.lineWidth = 1;
   context.strokeRect(24.5, 24.5, 137, 33);
-  context.fillStyle = "#bbf7d0";
+  context.fillStyle = palette.badgeText;
   context.font = "700 13px Inter, system-ui, sans-serif";
   context.textAlign = "left";
   context.fillText("MAIN THREAD FREE", 38, 42);
@@ -195,6 +267,13 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "render:resize") {
       resize(message.payload as RenderResizePayload);
       scope.postMessage({ id: message.id, type: "render:resized", payload: { ok: true } });
+      return;
+    }
+
+    if (message.type === "render:set-theme") {
+      activeTheme = (message.payload as RenderThemePayload).theme;
+      draw(performance.now());
+      scope.postMessage({ id: message.id, type: "render:theme-set", payload: { ok: true } });
       return;
     }
 

@@ -10,6 +10,24 @@ import { DiagnosticsPanel } from "../modules/diagnostics/DiagnosticsPanel";
 import "./App.css";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
+const themeStorageKey = "jarvis-prime.theme";
+
+const themeOptions = [
+  { id: "dark", label: "Dark" },
+  { id: "white", label: "White" },
+  { id: "gradient", label: "Gradient" },
+] as const;
+
+type ThemeMode = (typeof themeOptions)[number]["id"];
+
+function isThemeMode(value: string | null): value is ThemeMode {
+  return themeOptions.some((option) => option.id === value);
+}
+
+function getInitialTheme(): ThemeMode {
+  const storedTheme = window.localStorage.getItem(themeStorageKey);
+  return isThemeMode(storedTheme) ? storedTheme : "dark";
+}
 
 function createRegistry(): ModuleRegistry {
   const registry = new ModuleRegistry();
@@ -24,6 +42,7 @@ export function App() {
   const registry = useMemo(() => createRegistry(), []);
   const [moduleIds, setModuleIds] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
 
   useEffect(() => {
     const context: ModuleContext = {
@@ -42,8 +61,14 @@ export function App() {
     };
   }, [eventBus, registry, workerHost]);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme === "white" ? "light" : "dark";
+    window.localStorage.setItem(themeStorageKey, theme);
+  }, [theme]);
+
   return (
-    <div className={`app-shell ${isSidebarOpen ? "" : "sidebar-hidden"}`}>
+    <div className={`app-shell ${isSidebarOpen ? "" : "sidebar-hidden"}`.trim()}>
       {isSidebarOpen ? (
         <aside className="side-nav" aria-label="Primary navigation">
           <div className="brand-lockup">
@@ -87,7 +112,22 @@ export function App() {
               <h1>Command Center</h1>
             </div>
           </div>
-          <div className="session-pill">Viewer prototype</div>
+          <div className="top-bar-actions">
+            <div className="theme-switcher" role="group" aria-label="Theme">
+              {themeOptions.map((option) => (
+                <button
+                  key={option.id}
+                  aria-pressed={theme === option.id}
+                  className="theme-option"
+                  type="button"
+                  onClick={() => setTheme(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <div className="session-pill">Viewer prototype</div>
+          </div>
         </header>
 
         <section id="command-center" className="command-grid" aria-label="Command Center">
@@ -113,7 +153,7 @@ export function App() {
           </article>
         </section>
 
-        <DiagnosticsPanel workerHost={workerHost} />
+        <DiagnosticsPanel theme={theme} workerHost={workerHost} />
       </main>
     </div>
   );

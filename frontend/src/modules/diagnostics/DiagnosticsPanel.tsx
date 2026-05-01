@@ -4,6 +4,7 @@ import type { RenderStatsPayload } from "../../core/worker-messages";
 import type { WorkerHost } from "../../core/worker-host";
 
 type DiagnosticsPanelProps = {
+  theme: "dark" | "white" | "gradient";
   workerHost: WorkerHost;
 };
 
@@ -14,7 +15,7 @@ const initialStats: RenderStatsPayload = {
   height: 0,
 };
 
-export function DiagnosticsPanel({ workerHost }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({ theme, workerHost }: DiagnosticsPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const transferredRef = useRef(false);
   const [stats, setStats] = useState<RenderStatsPayload>(initialStats);
@@ -80,6 +81,10 @@ export function DiagnosticsPanel({ workerHost }: DiagnosticsPanelProps) {
       void workerHost.post("render", "render:dispose").catch(() => undefined);
     };
   }, [workerHost]);
+
+  useEffect(() => {
+    void workerHost.post("render", "render:set-theme", { theme }).catch(() => undefined);
+  }, [theme, workerHost]);
 
   return (
     <section id="diagnostics" className="diagnostics" aria-label="Worker diagnostics">

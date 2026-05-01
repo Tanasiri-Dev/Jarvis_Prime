@@ -26,6 +26,10 @@ export interface RenderResizePayload {
   devicePixelRatio: number;
 }
 
+export interface RenderThemePayload {
+  theme: "dark" | "white" | "gradient";
+}
+
 export interface RenderStatsPayload {
   fps: number;
   frameMs: number;
