@@ -6,7 +6,7 @@ This plan turns the product vision in `CLAUDE.md` into buildable phases. Each ph
 
 ## Current Status
 
-Phase: **0 - Product and architecture baseline**
+Phase: **0 - Foundation scaffold in progress**
 
 Initial focus:
 
@@ -14,6 +14,14 @@ Initial focus:
 - Choose frontend approach through ADR.
 - Create backend, frontend, infra, and CI skeletons.
 - Prove worker-first rendering and async backend foundations before feature expansion.
+
+Completed baseline items:
+
+- Product and architecture rules created.
+- ADR-0001 accepted: React + TypeScript + Vite.
+- FastAPI health skeleton added.
+- React shell, WorkerHost, ModuleRegistry, and OffscreenCanvas render-worker proof added.
+- Docker Compose and CI scaffold added.
 
 ---
 

@@ -18,7 +18,36 @@ Read these first:
 
 ## Current Status
 
-This repository currently contains the product and architecture baseline. Implementation begins with Phase 0 in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+Phase 0 scaffold has started:
+
+- Backend FastAPI health endpoint.
+- Frontend React + TypeScript + Vite shell.
+- WorkerHost and ModuleRegistry foundation.
+- OffscreenCanvas render-worker proof.
+- Docker Compose for PostgreSQL, backend, and frontend.
+- CI workflow for backend and frontend checks.
+
+## Quick Start
+
+```bash
+# Full local stack
+docker compose -f infra/docker-compose.yml up --build
+
+# Backend only
+cd backend
+pip install -e ".[dev]"
+uvicorn app.main:app --reload
+
+# Frontend only
+cd frontend
+npm install
+npm run dev
+```
+
+Open:
+
+- Frontend: http://localhost:5173
+- Backend health: http://localhost:8000/api/v1/health
 
 ## Local Git
 
