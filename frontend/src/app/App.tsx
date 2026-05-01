@@ -23,6 +23,7 @@ export function App() {
   const workerHost = useMemo(() => new WorkerHost(), []);
   const registry = useMemo(() => createRegistry(), []);
   const [moduleIds, setModuleIds] = useState<string[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     const context: ModuleContext = {
@@ -42,31 +43,49 @@ export function App() {
   }, [eventBus, registry, workerHost]);
 
   return (
-    <div className="app-shell">
-      <aside className="side-nav" aria-label="Primary navigation">
-        <div className="brand-lockup">
-          <span className="brand-mark">JP</span>
-          <div>
-            <strong>Jarvis Prime</strong>
-            <span>Engineering assistant</span>
+    <div className={`app-shell ${isSidebarOpen ? "" : "sidebar-hidden"}`}>
+      {isSidebarOpen ? (
+        <aside className="side-nav" aria-label="Primary navigation">
+          <div className="brand-lockup">
+            <span className="brand-mark">JP</span>
+            <div>
+              <strong>Jarvis Prime</strong>
+              <span>Engineering assistant</span>
+            </div>
           </div>
-        </div>
 
-        <nav>
-          <a aria-current="page" href="#command-center">Command</a>
-          <a href="#tasks">Tasks</a>
-          <a href="#engineering-tools">Tools</a>
-          <a href="#factory">Factory</a>
-          <a href="#traceability">Trace</a>
-          <a href="#diagnostics">Diagnostics</a>
-        </nav>
-      </aside>
+          <nav>
+            <a aria-current="page" href="#command-center">Command</a>
+            <a href="#tasks">Tasks</a>
+            <a href="#engineering-tools">Tools</a>
+            <a href="#factory">Factory</a>
+            <a href="#traceability">Trace</a>
+            <a href="#diagnostics">Diagnostics</a>
+          </nav>
+        </aside>
+      ) : null}
 
       <main className="workspace">
         <header className="top-bar">
-          <div>
-            <p className="eyebrow">Phase 0 foundation</p>
-            <h1>Command Center</h1>
+          <div className="top-bar-title">
+            <button
+              aria-label={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              aria-expanded={isSidebarOpen}
+              className="icon-button sidebar-toggle"
+              title={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              type="button"
+              onClick={() => setIsSidebarOpen((current) => !current)}
+            >
+              <span aria-hidden="true" className="menu-icon">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+            <div>
+              <p className="eyebrow">Phase 0 foundation</p>
+              <h1>Command Center</h1>
+            </div>
           </div>
           <div className="session-pill">Viewer prototype</div>
         </header>

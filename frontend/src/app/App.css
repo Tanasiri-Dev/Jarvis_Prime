@@ -37,6 +37,10 @@ a {
   min-height: 100vh;
 }
 
+.app-shell.sidebar-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .side-nav {
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(11, 15, 23, 0.9);
@@ -104,6 +108,13 @@ a {
   align-items: center;
 }
 
+.top-bar-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
 .top-bar h1,
 .focus-panel h2 {
   margin: 0;
@@ -128,6 +139,49 @@ a {
   color: #cbd5e1;
   padding: 8px 12px;
   white-space: nowrap;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #e2e8f0;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.icon-button:hover {
+  border-color: rgba(134, 239, 172, 0.42);
+  background: rgba(31, 41, 55, 0.92);
+}
+
+.icon-button:focus-visible {
+  outline: 2px solid #86efac;
+  outline-offset: 2px;
+}
+
+.icon-button:active {
+  transform: translateY(1px);
+}
+
+.menu-icon {
+  display: grid;
+  gap: 4px;
+  width: 18px;
+}
+
+.menu-icon span {
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .command-grid {
@@ -213,6 +267,10 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .app-shell.sidebar-hidden {
+    grid-template-columns: 1fr;
+  }
+
   .side-nav {
     position: sticky;
     top: 0;
@@ -221,6 +279,10 @@ a {
     justify-content: space-between;
     gap: 16px;
     overflow-x: auto;
+  }
+
+  .top-bar {
+    align-items: flex-start;
   }
 
   .side-nav nav {
