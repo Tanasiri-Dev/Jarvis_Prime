@@ -13,6 +13,23 @@ export interface WorkerNotification<TPayload = unknown> {
   error?: string;
 }
 
+export interface WeekShiftRequestPayload {
+  timestamp: string;
+  dayShiftStartHour: number;
+  shiftLengthHours: number;
+}
+
+export interface WeekShiftResultPayload {
+  isoWeek: number;
+  isoWeekLabel: string;
+  isoYear: number;
+  dayName: string;
+  shiftName: string;
+  shiftDate: string;
+  shiftStart: string;
+  shiftEnd: string;
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;
