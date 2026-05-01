@@ -474,16 +474,6 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                 onChange={(event) => setDurationEnd(event.target.value)}
               />
             </label>
-
-            <label>
-              <span>Break minutes</span>
-              <input
-                min={0}
-                type="number"
-                value={breakMinutes}
-                onChange={(event) => setBreakMinutes(Number(event.target.value))}
-              />
-            </label>
           </div>
 
           {durationError ? <div className="error-note">{durationError}</div> : null}
@@ -497,8 +487,16 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <span>Gross duration</span>
               <strong>{durationResult?.grossLabel ?? "--"}</strong>
             </div>
-            <div className="result-tile">
-              <span>Break</span>
+            <div className="result-tile break-minute-tile">
+              <label>
+                <span>Break minutes</span>
+                <input
+                  min={0}
+                  type="number"
+                  value={breakMinutes}
+                  onChange={(event) => setBreakMinutes(Number(event.target.value))}
+                />
+              </label>
               <strong>{durationResult?.breakLabel ?? "--"}</strong>
             </div>
             <div className="result-tile">

@@ -502,6 +502,10 @@ a {
   outline-offset: 1px;
 }
 
+.duration-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .result-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -539,6 +543,36 @@ a {
 .emphasis-tile strong {
   color: var(--brand-text);
   font-size: 24px;
+}
+
+.duration-result-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.break-minute-tile {
+  gap: 10px;
+}
+
+.break-minute-tile label {
+  display: grid;
+  gap: 7px;
+}
+
+.break-minute-tile input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.break-minute-tile input:focus {
+  border-color: var(--brand-border);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
 }
 
 .duration-summary {
@@ -966,6 +1000,10 @@ a {
   .tool-form {
     grid-template-columns: 1fr 1fr;
   }
+
+  .duration-result-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -988,6 +1026,11 @@ a {
   }
 
   .tool-form {
+    grid-template-columns: 1fr;
+  }
+
+  .duration-form,
+  .duration-result-grid {
     grid-template-columns: 1fr;
   }
 
