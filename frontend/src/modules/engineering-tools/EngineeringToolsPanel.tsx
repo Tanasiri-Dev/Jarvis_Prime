@@ -21,6 +21,14 @@ type StopwatchLap = {
   timestamp: string;
 };
 
+type ActiveTool = "workweek" | "factory-clock" | "stopwatch";
+
+const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = [
+  { id: "workweek", label: "WorkWeek", category: "Time and shift" },
+  { id: "factory-clock", label: "Factory Clock", category: "Clock" },
+  { id: "stopwatch", label: "Stopwatch", category: "Manufacturing" },
+];
+
 const pad = (value: number): string => String(value).padStart(2, "0");
 
 function toDatetimeLocalValue(date: Date): string {
@@ -91,6 +99,7 @@ function exportStopwatchHistory(laps: StopwatchLap[]): void {
 }
 
 export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps) {
+  const [activeTool, setActiveTool] = useState<ActiveTool>("workweek");
   const [timestamp, setTimestamp] = useState(() => toDatetimeLocalValue(new Date()));
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
   const [shiftLengthHours, setShiftLengthHours] = useState(12);
@@ -259,11 +268,13 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       </article>
 
       <div className="tools-grid">
+        <div className="tool-workspace">
+        {activeTool === "workweek" ? (
         <article className="panel tool-card active-tool">
           <div className="tool-card-header">
             <div>
               <p className="eyebrow">Time and shift</p>
-              <h3>Week / Shift Calculator</h3>
+              <h3>WorkWeek / Shift Calculator</h3>
             </div>
             <span className={`status-chip status-${status}`}>{status}</span>
           </div>
@@ -326,7 +337,9 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
             </div>
           </div>
         </article>
+        ) : null}
 
+        {activeTool === "factory-clock" ? (
         <article className="panel tool-card clock-tool">
           <div className="tool-card-header">
             <div>
@@ -367,7 +380,9 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
             Next shift change: <strong>{clock?.nextShiftChange ?? "--"}</strong>
           </p>
         </article>
+        ) : null}
 
+        {activeTool === "stopwatch" ? (
         <article className="panel tool-card stopwatch-tool">
           <div className="tool-card-header">
             <div>
@@ -441,9 +456,28 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
             )}
           </div>
         </article>
+        ) : null}
+        </div>
 
         <aside className="panel tool-library">
-          <p className="eyebrow">Next tools</p>
+          <p className="eyebrow">Tool Library</p>
+          <div className="tool-picker" role="listbox" aria-label="Engineering tool picker">
+            {toolOptions.map((tool) => (
+              <button
+                key={tool.id}
+                aria-selected={activeTool === tool.id}
+                className="tool-picker-item"
+                role="option"
+                type="button"
+                onClick={() => setActiveTool(tool.id)}
+              >
+                <span>{tool.category}</span>
+                <strong>{tool.label}</strong>
+              </button>
+            ))}
+          </div>
+
+          <p className="eyebrow library-subtitle">Coming next</p>
           <ul>
             <li>Unit converter</li>
             <li>Yield / scrap / UPH calculator</li>
