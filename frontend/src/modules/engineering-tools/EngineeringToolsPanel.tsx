@@ -45,7 +45,8 @@ type ActiveTool =
   | "stopwatch"
   | "alarm-decoder"
   | "unit-converter"
-  | "online-alarm";
+  | "online-alarm"
+  | "countdown-timer";
 
 type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
 
@@ -56,6 +57,7 @@ const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = 
   { id: "timezone", label: "Timezone Converter", category: "Time" },
   { id: "stopwatch", label: "Stopwatch", category: "Time" },
   { id: "online-alarm", label: "Online Alarm", category: "Time" },
+  { id: "countdown-timer", label: "Countdown Timer", category: "Time" },
   { id: "unit-converter", label: "Unit Converter", category: "Unit Convert" },
   { id: "alarm-decoder", label: "Alarm Decoder", category: "Decoder" },
 ];
@@ -305,6 +307,15 @@ function formatClockDate(date: Date): string {
   });
 }
 
+function formatCountdown(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
 function playAlarmTone(soundId: string): void {
   const sound = alarmSoundOptions.find((option) => option.id === soundId) ?? alarmSoundOptions[0];
   const AudioContextClass = window.AudioContext;
@@ -409,6 +420,15 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [alarmMinute, setAlarmMinute] = useState("00");
   const [alarmLabel, setAlarmLabel] = useState("Factory reminder");
   const [alarmSound, setAlarmSound] = useState(alarmSoundOptions[0].id);
+  const [countdownHours, setCountdownHours] = useState("00");
+  const [countdownMinutes, setCountdownMinutes] = useState("10");
+  const [countdownSeconds, setCountdownSeconds] = useState("00");
+  const [countdownLabel, setCountdownLabel] = useState("Countdown");
+  const [countdownSound, setCountdownSound] = useState(alarmSoundOptions[0].id);
+  const [countdownDurationMs, setCountdownDurationMs] = useState(10 * 60 * 1000);
+  const [countdownRemainingMs, setCountdownRemainingMs] = useState(10 * 60 * 1000);
+  const [countdownStartedAt, setCountdownStartedAt] = useState<number | null>(null);
+  const [isCountdownRunning, setIsCountdownRunning] = useState(false);
   const [onlineAlarms, setOnlineAlarms] = useState<OnlineAlarm[]>([
     {
       id: 1,
@@ -552,6 +572,10 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       })
       .sort((left, right) => left.nextRun.getTime() - right.nextRun.getTime())[0];
   }, [alarmClockNow, onlineAlarms]);
+  const countdownProgress =
+    countdownDurationMs > 0
+      ? Math.min(100, Math.max(0, ((countdownDurationMs - countdownRemainingMs) / countdownDurationMs) * 100))
+      : 0;
   const availableTimezoneNames = useMemo(() => {
     const intlWithTimezoneList = Intl as typeof Intl & {
       supportedValuesOf?: (key: "timeZone") => string[];
@@ -840,6 +864,27 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     });
   }, [alarmClockNow, onlineAlarms]);
 
+  useEffect(() => {
+    if (!isCountdownRunning || countdownStartedAt === null) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      const elapsed = Date.now() - countdownStartedAt;
+      const remaining = Math.max(0, countdownDurationMs - elapsed);
+
+      setCountdownRemainingMs(remaining);
+
+      if (remaining <= 0) {
+        setIsCountdownRunning(false);
+        setCountdownStartedAt(null);
+        playAlarmTone(countdownSound);
+      }
+    }, 250);
+
+    return () => window.clearInterval(intervalId);
+  }, [countdownDurationMs, countdownSound, countdownStartedAt, isCountdownRunning]);
+
   const startStopwatch = () => {
     if (isStopwatchRunning) {
       return;
@@ -959,6 +1004,41 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
 
   const removeOnlineAlarm = (alarmId: number) => {
     setOnlineAlarms((current) => current.filter((alarm) => alarm.id !== alarmId));
+  };
+
+  const applyCountdownDuration = (hours: string, minutes: string, seconds: string) => {
+    const durationMs =
+      (Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds)) * 1000;
+    const nextDurationMs = Math.max(1000, durationMs);
+
+    setCountdownHours(hours);
+    setCountdownMinutes(minutes);
+    setCountdownSeconds(seconds);
+    setCountdownDurationMs(nextDurationMs);
+    setCountdownRemainingMs(nextDurationMs);
+    setCountdownStartedAt(null);
+    setIsCountdownRunning(false);
+  };
+
+  const startCountdown = () => {
+    const durationMs =
+      countdownRemainingMs > 0 ? countdownRemainingMs : countdownDurationMs;
+
+    setCountdownDurationMs(durationMs);
+    setCountdownRemainingMs(durationMs);
+    setCountdownStartedAt(Date.now());
+    setIsCountdownRunning(true);
+  };
+
+  const pauseCountdown = () => {
+    setIsCountdownRunning(false);
+    setCountdownStartedAt(null);
+  };
+
+  const resetCountdown = () => {
+    setIsCountdownRunning(false);
+    setCountdownStartedAt(null);
+    setCountdownRemainingMs(countdownDurationMs);
   };
 
   return (
@@ -1474,6 +1554,138 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                 </div>
               </article>
             ))}
+          </div>
+        </article>
+        ) : null}
+
+        {activeTool === "countdown-timer" ? (
+        <article className="panel tool-card countdown-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Time</p>
+              <h3>Countdown Timer</h3>
+            </div>
+            <span className={`status-chip ${isCountdownRunning ? "status-running" : "status-ready"}`}>
+              {isCountdownRunning ? "running" : "ready"}
+            </span>
+          </div>
+
+          <div className="countdown-face" aria-live="polite">
+            <span>{countdownLabel || "Countdown"}</span>
+            <strong>{formatCountdown(countdownRemainingMs)}</strong>
+            <div className="countdown-progress" aria-hidden="true">
+              <span style={{ width: `${countdownProgress}%` }} />
+            </div>
+          </div>
+
+          <div className="countdown-builder">
+            <label>
+              <span>Hours</span>
+              <select
+                value={countdownHours}
+                onChange={(event) =>
+                  applyCountdownDuration(event.target.value, countdownMinutes, countdownSeconds)
+                }
+              >
+                {hourOptions.map((hour) => (
+                  <option key={hour} value={hour}>
+                    {hour}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Minutes</span>
+              <select
+                value={countdownMinutes}
+                onChange={(event) =>
+                  applyCountdownDuration(countdownHours, event.target.value, countdownSeconds)
+                }
+              >
+                {minuteOptions.map((minute) => (
+                  <option key={minute} value={minute}>
+                    {minute}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Seconds</span>
+              <select
+                value={countdownSeconds}
+                onChange={(event) =>
+                  applyCountdownDuration(countdownHours, countdownMinutes, event.target.value)
+                }
+              >
+                {minuteOptions.map((second) => (
+                  <option key={second} value={second}>
+                    {second}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Sound</span>
+              <select
+                value={countdownSound}
+                onChange={(event) => setCountdownSound(event.target.value)}
+              >
+                {alarmSoundOptions.map((sound) => (
+                  <option key={sound.id} value={sound.id}>
+                    {sound.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Timer name</span>
+              <input
+                type="text"
+                value={countdownLabel}
+                onChange={(event) => setCountdownLabel(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="alarm-quick-grid">
+            {[
+              ["00", "01", "00", "1 min"],
+              ["00", "05", "00", "5 min"],
+              ["00", "10", "00", "10 min"],
+              ["00", "15", "00", "15 min"],
+              ["00", "20", "00", "20 min"],
+              ["00", "25", "00", "25 min"],
+              ["00", "30", "00", "30 min"],
+              ["00", "45", "00", "45 min"],
+            ].map(([hours, minutes, seconds, label]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => applyCountdownDuration(hours, minutes, seconds)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="countdown-actions">
+            <button className="add-city-button" type="button" onClick={() => playAlarmTone(countdownSound)}>
+              Test sound
+            </button>
+            <button
+              className="add-city-submit"
+              type="button"
+              onClick={isCountdownRunning ? pauseCountdown : startCountdown}
+            >
+              {isCountdownRunning ? "Pause" : "Start countdown"}
+            </button>
+            <button className="add-city-button" type="button" onClick={resetCountdown}>
+              Reset
+            </button>
           </div>
         </article>
         ) : null}
