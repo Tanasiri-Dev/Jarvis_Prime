@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type {
+  FactoryClockResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
 } from "../../core/worker-messages";
@@ -25,8 +26,11 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
   const [shiftLengthHours, setShiftLengthHours] = useState(12);
   const [result, setResult] = useState<WeekShiftResultPayload | null>(null);
+  const [clock, setClock] = useState<FactoryClockResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
+  const [clockStatus, setClockStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [clockError, setClockError] = useState<string | null>(null);
 
   const requestPayload = useMemo<WeekShiftRequestPayload>(
     () => ({
@@ -64,6 +68,43 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     return () => {
       isCurrent = false;
       window.clearTimeout(timeoutId);
+    };
+  }, [requestPayload, workerHost]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    const refreshClock = () => {
+      setClockStatus((current) => (current === "ready" ? "ready" : "running"));
+      setClockError(null);
+
+      void workerHost
+        .post<FactoryClockResultPayload>("compute", "tool:factory-clock", {
+          ...requestPayload,
+          timestamp: new Date().toISOString(),
+        })
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+          setClock(payload);
+          setClockStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+          setClockStatus("error");
+          setClockError(reason instanceof Error ? reason.message : "Unable to refresh clock.");
+        });
+    };
+
+    refreshClock();
+    const intervalId = window.setInterval(refreshClock, 1000);
+
+    return () => {
+      isCurrent = false;
+      window.clearInterval(intervalId);
     };
   }, [requestPayload, workerHost]);
 
@@ -125,8 +166,12 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
 
           <div className="result-grid" aria-live="polite">
             <div className="result-tile">
-              <span>ISO week</span>
-              <strong>{result?.isoWeekLabel ?? "--"}</strong>
+              <span>Year</span>
+              <strong>{result?.isoYear ?? "--"}</strong>
+            </div>
+            <div className="result-tile">
+              <span>WorkWeek</span>
+              <strong>{result ? `WW${String(result.isoWeek).padStart(2, "0")}` : "--"}</strong>
             </div>
             <div className="result-tile">
               <span>Shift</span>
@@ -141,6 +186,47 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <strong>{result?.dayName ?? "--"}</strong>
             </div>
           </div>
+        </article>
+
+        <article className="panel tool-card clock-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Clock</p>
+              <h3>Factory Clock</h3>
+            </div>
+            <span className={`status-chip status-${clockStatus}`}>{clockStatus}</span>
+          </div>
+
+          {clockError ? <div className="error-note">{clockError}</div> : null}
+
+          <div className="clock-face" aria-live="polite">
+            <span>{clock?.localDate ?? "--"}</span>
+            <strong>{clock?.localTime ?? "--:--:--"}</strong>
+            <small>{clock?.timezone ?? "Local timezone"}</small>
+          </div>
+
+          <div className="result-grid clock-result-grid">
+            <div className="result-tile">
+              <span>UTC</span>
+              <strong>{clock?.utcTime ?? "--"}</strong>
+            </div>
+            <div className="result-tile">
+              <span>Current shift</span>
+              <strong>{clock?.shiftName ?? "--"}</strong>
+            </div>
+            <div className="result-tile">
+              <span>Next shift</span>
+              <strong>{clock?.nextShiftName ?? "--"}</strong>
+            </div>
+            <div className="result-tile">
+              <span>Change in</span>
+              <strong>{clock?.remainingLabel ?? "--"}</strong>
+            </div>
+          </div>
+
+          <p className="tool-note">
+            Next shift change: <strong>{clock?.nextShiftChange ?? "--"}</strong>
+          </p>
         </article>
 
         <aside className="panel tool-library">

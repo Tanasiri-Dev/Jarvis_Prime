@@ -1,4 +1,6 @@
 import type {
+  FactoryClockRequestPayload,
+  FactoryClockResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
   WorkerEnvelope,
@@ -19,6 +21,16 @@ const toDateKey = (date: Date): string =>
 
 const toLocalDateTime = (date: Date): string =>
   `${toDateKey(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+const toTime = (date: Date): string =>
+  `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+
+const toUtcTime = (date: Date): string =>
+  `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())} UTC`;
+
+type ShiftDetails = WeekShiftResultPayload & {
+  shiftEndDate: Date;
+};
 
 function getIsoWeek(date: Date): { isoWeek: number; isoYear: number } {
   const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -48,7 +60,7 @@ function normalizeLength(value: number, fallback: number): number {
   return Math.min(24, Math.max(1, Math.trunc(value)));
 }
 
-function calculateWeekShift(payload: WeekShiftRequestPayload): WeekShiftResultPayload {
+function calculateWeekShiftDetails(payload: WeekShiftRequestPayload): ShiftDetails {
   const timestamp = new Date(payload.timestamp);
 
   if (Number.isNaN(timestamp.getTime())) {
@@ -92,6 +104,46 @@ function calculateWeekShift(payload: WeekShiftRequestPayload): WeekShiftResultPa
     shiftDate: toDateKey(shiftDate),
     shiftStart: toLocalDateTime(shiftStart),
     shiftEnd: toLocalDateTime(shiftEnd),
+    shiftEndDate: shiftEnd,
+  };
+}
+
+function calculateWeekShift(payload: WeekShiftRequestPayload): WeekShiftResultPayload {
+  const { shiftEndDate: _shiftEndDate, ...result } = calculateWeekShiftDetails(payload);
+  return result;
+}
+
+function formatRemaining(milliseconds: number): string {
+  const totalMinutes = Math.max(0, Math.ceil(milliseconds / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours === 0) {
+    return `${minutes} min`;
+  }
+
+  return `${hours} hr ${minutes} min`;
+}
+
+function calculateFactoryClock(payload: FactoryClockRequestPayload): FactoryClockResultPayload {
+  const timestamp = new Date(payload.timestamp);
+
+  if (Number.isNaN(timestamp.getTime())) {
+    throw new Error("Invalid clock timestamp.");
+  }
+
+  const shift = calculateWeekShiftDetails(payload);
+  const nextShiftName = shift.shiftName === "Day" ? "Night" : "Day";
+
+  return {
+    localDate: toDateKey(timestamp),
+    localTime: toTime(timestamp),
+    utcTime: toUtcTime(timestamp),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    shiftName: shift.shiftName,
+    nextShiftName,
+    nextShiftChange: toLocalDateTime(shift.shiftEndDate),
+    remainingLabel: formatRemaining(shift.shiftEndDate.getTime() - timestamp.getTime()),
   };
 }
 
@@ -107,6 +159,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:week-shift") {
       const payload = calculateWeekShift(message.payload as WeekShiftRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:week-shift:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:factory-clock") {
+      const payload = calculateFactoryClock(message.payload as FactoryClockRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:factory-clock:result", payload });
       return;
     }
 

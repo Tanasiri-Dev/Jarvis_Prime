@@ -411,11 +411,22 @@ a {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 16px;
+  align-items: start;
 }
 
 .tool-card {
   display: grid;
   gap: 18px;
+}
+
+.active-tool,
+.clock-tool {
+  grid-column: 1;
+}
+
+.tool-library {
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 
 .tool-card-header {
@@ -486,7 +497,7 @@ a {
 
 .result-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
 }
 
@@ -509,6 +520,49 @@ a {
   color: var(--text-primary);
   font-size: 20px;
   line-height: 1.15;
+}
+
+.clock-face {
+  display: grid;
+  place-items: center;
+  min-height: 190px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 20%, var(--accent-soft), transparent 44%),
+    var(--surface-control);
+  padding: 20px;
+  text-align: center;
+}
+
+.clock-face span,
+.clock-face small,
+.tool-note {
+  color: var(--text-muted);
+}
+
+.clock-face strong {
+  color: var(--text-primary);
+  font-size: clamp(42px, 7vw, 76px);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.clock-face small {
+  font-size: 13px;
+}
+
+.clock-result-grid .result-tile {
+  min-height: 96px;
+}
+
+.tool-note {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.tool-note strong {
+  color: var(--text-secondary);
 }
 
 .tool-library ul {
@@ -574,8 +628,14 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .tool-form,
-  .result-grid {
+  .active-tool,
+  .clock-tool,
+  .tool-library {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .tool-form {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -599,8 +659,7 @@ a {
     display: none;
   }
 
-  .tool-form,
-  .result-grid {
+  .tool-form {
     grid-template-columns: 1fr;
   }
 

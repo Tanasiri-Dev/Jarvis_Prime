@@ -30,6 +30,23 @@ export interface WeekShiftResultPayload {
   shiftEnd: string;
 }
 
+export interface FactoryClockRequestPayload {
+  timestamp: string;
+  dayShiftStartHour: number;
+  shiftLengthHours: number;
+}
+
+export interface FactoryClockResultPayload {
+  localDate: string;
+  localTime: string;
+  utcTime: string;
+  timezone: string;
+  shiftName: string;
+  nextShiftName: string;
+  nextShiftChange: string;
+  remainingLabel: string;
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;
