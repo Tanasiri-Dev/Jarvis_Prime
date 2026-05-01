@@ -1,20 +1,20 @@
 {
   "sourceTimezones": [
-    { "timezone": "Asia/Bangkok", "label": "Thailand", "flagCode": "TH" },
-    { "timezone": "UTC", "label": "UTC", "flagCode": "UTC" },
-    { "timezone": "America/Los_Angeles", "label": "Los Angeles", "flagCode": "US" },
-    { "timezone": "America/New_York", "label": "Durham NC", "flagCode": "US" },
-    { "timezone": "Asia/Shanghai", "label": "China", "flagCode": "CN" },
-    { "timezone": "Europe/Rome", "label": "Italy", "flagCode": "IT" },
-    { "timezone": "Asia/Tokyo", "label": "Tokyo", "flagCode": "JP" },
-    { "timezone": "Asia/Singapore", "label": "Singapore", "flagCode": "SG" }
+    { "timezone": "Asia/Bangkok", "label": "Thailand" },
+    { "timezone": "UTC", "label": "UTC" },
+    { "timezone": "America/Los_Angeles", "label": "Los Angeles" },
+    { "timezone": "America/New_York", "label": "Durham NC" },
+    { "timezone": "Asia/Shanghai", "label": "China" },
+    { "timezone": "Europe/Rome", "label": "Italy" },
+    { "timezone": "Asia/Tokyo", "label": "Tokyo" },
+    { "timezone": "Asia/Singapore", "label": "Singapore" }
   ],
   "targetTimezones": [
-    { "timezone": "Asia/Bangkok", "label": "Thailand", "flagCode": "TH" },
-    { "timezone": "America/Los_Angeles", "label": "Los Angeles", "flagCode": "US" },
-    { "timezone": "America/New_York", "label": "Durham NC", "flagCode": "US" },
-    { "timezone": "Asia/Shanghai", "label": "China", "flagCode": "CN" },
-    { "timezone": "Europe/Rome", "label": "Italy", "flagCode": "IT" },
-    { "timezone": "Asia/Tokyo", "label": "Tokyo", "flagCode": "JP" }
+    { "timezone": "Asia/Bangkok", "label": "Thailand" },
+    { "timezone": "America/Los_Angeles", "label": "Los Angeles" },
+    { "timezone": "America/New_York", "label": "Durham NC" },
+    { "timezone": "Asia/Shanghai", "label": "China" },
+    { "timezone": "Europe/Rome", "label": "Italy" },
+    { "timezone": "Asia/Tokyo", "label": "Tokyo" }
   ]
 }

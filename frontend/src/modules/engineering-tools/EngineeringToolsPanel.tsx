@@ -44,8 +44,6 @@ type TimezoneConfig = {
 type RawTimezoneConfigItem = {
   timezone?: unknown;
   label?: unknown;
-  flag?: unknown;
-  flagCode?: unknown;
 };
 
 type RawTimezoneConfig = {
@@ -55,22 +53,22 @@ type RawTimezoneConfig = {
 
 const fallbackTimezoneConfig: TimezoneConfig = {
   sourceTimezones: [
-    { timezone: "Asia/Bangkok", label: "Thailand", flagCode: "TH" },
-    { timezone: "UTC", label: "UTC", flagCode: "UTC" },
-    { timezone: "America/Los_Angeles", label: "Los Angeles", flagCode: "US" },
-    { timezone: "America/New_York", label: "Durham NC", flagCode: "US" },
-    { timezone: "Asia/Shanghai", label: "China", flagCode: "CN" },
-    { timezone: "Europe/Rome", label: "Italy", flagCode: "IT" },
-    { timezone: "Asia/Tokyo", label: "Tokyo", flagCode: "JP" },
-    { timezone: "Asia/Singapore", label: "Singapore", flagCode: "SG" },
+    { timezone: "Asia/Bangkok", label: "Thailand" },
+    { timezone: "UTC", label: "UTC" },
+    { timezone: "America/Los_Angeles", label: "Los Angeles" },
+    { timezone: "America/New_York", label: "Durham NC" },
+    { timezone: "Asia/Shanghai", label: "China" },
+    { timezone: "Europe/Rome", label: "Italy" },
+    { timezone: "Asia/Tokyo", label: "Tokyo" },
+    { timezone: "Asia/Singapore", label: "Singapore" },
   ],
   targetTimezones: [
-    { timezone: "Asia/Bangkok", label: "Thailand", flagCode: "TH" },
-    { timezone: "America/Los_Angeles", label: "Los Angeles", flagCode: "US" },
-    { timezone: "America/New_York", label: "Durham NC", flagCode: "US" },
-    { timezone: "Asia/Shanghai", label: "China", flagCode: "CN" },
-    { timezone: "Europe/Rome", label: "Italy", flagCode: "IT" },
-    { timezone: "Asia/Tokyo", label: "Tokyo", flagCode: "JP" },
+    { timezone: "Asia/Bangkok", label: "Thailand" },
+    { timezone: "America/Los_Angeles", label: "Los Angeles" },
+    { timezone: "America/New_York", label: "Durham NC" },
+    { timezone: "Asia/Shanghai", label: "China" },
+    { timezone: "Europe/Rome", label: "Italy" },
+    { timezone: "Asia/Tokyo", label: "Tokyo" },
   ],
 };
 
@@ -86,12 +84,7 @@ function normalizeTimezoneItem(item: RawTimezoneConfigItem): TimezoneTargetConfi
   const label = typeof item.label === "string" && item.label.trim().length > 0
     ? item.label.trim()
     : fallbackLabel;
-  const rawFlag = typeof item.flagCode === "string" ? item.flagCode : item.flag;
-  const flagCode = typeof rawFlag === "string" && rawFlag.trim().length > 0
-    ? rawFlag.trim().toUpperCase()
-    : "UTC";
-
-  return { timezone, label, flagCode };
+  return { timezone, label };
 }
 
 function normalizeTimezoneItems(items: unknown): TimezoneTargetConfig[] {
@@ -138,20 +131,6 @@ function readStoredTimezoneItems(): TimezoneTargetConfig[] {
   } catch {
     return [];
   }
-}
-
-function countryFlag(flagCode: string): string {
-  if (flagCode === "UTC") {
-    return "UTC";
-  }
-
-  if (!/^[A-Z]{2}$/.test(flagCode)) {
-    return flagCode;
-  }
-
-  return String.fromCodePoint(
-    ...[...flagCode].map((letter) => 127397 + letter.charCodeAt(0)),
-  );
 }
 
 class StopwatchActionButtonModel {
@@ -273,7 +252,6 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [newTimezone, setNewTimezone] = useState<TimezoneTargetConfig>({
     timezone: "",
     label: "",
-    flagCode: "",
   });
   const [breakMinutes, setBreakMinutes] = useState(0);
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
@@ -350,13 +328,26 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       localTimestamp: timezoneTimestamp,
       sourceTimezone,
       sourceLabel: sourceTimezoneMeta.label,
-      sourceFlagCode: sourceTimezoneMeta.flagCode,
       targetTimezones: timezoneConfig.targetTimezones.filter(
         (timezone) => timezone.timezone !== sourceTimezone && timezone.timezone !== "UTC",
       ),
     }),
     [sourceTimezone, sourceTimezoneMeta, timezoneConfig.targetTimezones, timezoneTimestamp],
   );
+  const availableTimezoneNames = useMemo(() => {
+    const intlWithTimezoneList = Intl as typeof Intl & {
+      supportedValuesOf?: (key: "timeZone") => string[];
+    };
+    const browserTimezones = intlWithTimezoneList.supportedValuesOf?.("timeZone") ?? [];
+    const configuredTimezones = [
+      ...timezoneConfig.sourceTimezones.map((timezone) => timezone.timezone),
+      ...timezoneConfig.targetTimezones.map((timezone) => timezone.timezone),
+    ];
+
+    return Array.from(new Set([...configuredTimezones, ...browserTimezones])).sort((a, b) =>
+      a.localeCompare(b),
+    );
+  }, [timezoneConfig.sourceTimezones, timezoneConfig.targetTimezones]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -602,8 +593,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       newTimezone.label.trim() ||
       timezone.split("/").at(-1)?.replaceAll("_", " ") ||
       timezone;
-    const flagCode = newTimezone.flagCode.trim().toUpperCase() || "UTC";
-    const item: TimezoneTargetConfig = { timezone, label, flagCode };
+    const item: TimezoneTargetConfig = { timezone, label };
 
     setTimezoneConfig((current) => {
       const targetTimezones = mergeTimezoneItems(current.targetTimezones, [item]);
@@ -619,7 +609,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
 
       return { sourceTimezones, targetTimezones };
     });
-    setNewTimezone({ timezone: "", label: "", flagCode: "" });
+    setNewTimezone({ timezone: "", label: "" });
     setTimezoneError(null);
     setIsAddingTimezone(false);
   };
@@ -785,7 +775,6 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
 
           <div className="timezone-topline" aria-live="polite">
             <div className="utc-inline">
-              <span className="flag-badge">{countryFlag(timezoneResult?.utc.flagCode ?? "UTC")}</span>
               <div>
                 <span>UTC</span>
                 <strong>{timezoneResult?.utc.timeLabel ?? "--:--:--"}</strong>
@@ -811,6 +800,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <label>
                 <span>Timezone</span>
                 <input
+                  list="timezone-name-options"
                   placeholder="Europe/Rome"
                   type="text"
                   value={newTimezone.timezone}
@@ -821,6 +811,11 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                     }))
                   }
                 />
+                <datalist id="timezone-name-options">
+                  {availableTimezoneNames.map((timezone) => (
+                    <option key={timezone} value={timezone} />
+                  ))}
+                </datalist>
               </label>
               <label>
                 <span>City label</span>
@@ -832,21 +827,6 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                     setNewTimezone((current) => ({
                       ...current,
                       label: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                <span>Flag code</span>
-                <input
-                  maxLength={3}
-                  placeholder="IT"
-                  type="text"
-                  value={newTimezone.flagCode}
-                  onChange={(event) =>
-                    setNewTimezone((current) => ({
-                      ...current,
-                      flagCode: event.target.value,
                     }))
                   }
                 />
@@ -885,10 +865,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           {timezoneError ? <div className="error-note">{timezoneError}</div> : null}
 
           <div className="timezone-source-card" aria-live="polite">
-            <span>
-              <span className="flag-badge">{countryFlag(timezoneResult?.source.flagCode ?? "TH")}</span>
-              Source
-            </span>
+            <span>Source</span>
             <strong>{timezoneResult?.source.timeLabel ?? "--:--:--"}</strong>
             <small>
               {timezoneResult?.source.weekdayLabel ?? "--"} ·{" "}
@@ -903,7 +880,6 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
             {timezoneResult?.targets.map((target) => (
               <article className={`timezone-card day-${target.dayRelation}`} key={target.timezone}>
                 <div className="timezone-card-heading">
-                  <span className="flag-badge">{countryFlag(target.flagCode)}</span>
                   <div>
                     <span>{target.cityLabel}</span>
                     <small>{target.timezone}</small>

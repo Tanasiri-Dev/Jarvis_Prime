@@ -147,13 +147,12 @@ function formatTimezoneItem(
   target: TimezoneTargetConfig,
   sourceTimezone: string,
 ): TimezoneConversionItem {
-  const { flagCode, label, timezone } = target;
+  const { label, timezone } = target;
   const parts = getTimezoneParts(date, timezone);
 
   return {
     timezone,
     cityLabel: label || getCityLabel(timezone),
-    flagCode,
     dateLabel: `${parts.year}-${parts.month}-${parts.day}`,
     timeLabel: `${parts.hour}:${parts.minute}:${parts.second}`,
     weekdayLabel: parts.weekday,
@@ -323,13 +322,12 @@ function calculateTimezoneConversion(
     {
       timezone: payload.sourceTimezone,
       label: payload.sourceLabel,
-      flagCode: payload.sourceFlagCode,
     },
     payload.sourceTimezone,
   );
   const utc = formatTimezoneItem(
     timestamp,
-    { timezone: "UTC", label: "UTC", flagCode: "UTC" },
+    { timezone: "UTC", label: "UTC" },
     payload.sourceTimezone,
   );
   const targets = payload.targetTimezones.map((target) =>

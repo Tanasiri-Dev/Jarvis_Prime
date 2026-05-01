@@ -569,22 +569,6 @@ a {
   line-height: 1;
 }
 
-.flag-badge {
-  display: inline-grid;
-  place-items: center;
-  width: 36px;
-  min-width: 36px;
-  height: 28px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface-panel);
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 900;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
 .add-city-button,
 .add-city-submit {
   min-height: 38px;
@@ -617,7 +601,7 @@ a {
 
 .timezone-add-panel {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.7fr) minmax(100px, 0.28fr) auto;
+  grid-template-columns: minmax(260px, 1fr) minmax(180px, 0.7fr) auto;
   gap: 12px;
   align-items: end;
   border: 1px solid var(--border-subtle);
@@ -805,19 +789,11 @@ a {
   min-width: 0;
 }
 
-.timezone-card-heading span:not(.flag-badge),
+.timezone-card-heading span,
 .timezone-card-heading small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.utc-inline .flag-badge,
-.timezone-source-card .flag-badge,
-.timezone-card .flag-badge {
-  color: var(--text-primary);
-  font-size: 14px;
-  text-transform: uppercase;
 }
 
 .timezone-card span,

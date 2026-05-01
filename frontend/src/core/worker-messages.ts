@@ -69,20 +69,17 @@ export interface TimezoneConversionRequestPayload {
   localTimestamp: string;
   sourceTimezone: string;
   sourceLabel: string;
-  sourceFlagCode: string;
   targetTimezones: TimezoneTargetConfig[];
 }
 
 export interface TimezoneTargetConfig {
   timezone: string;
   label: string;
-  flagCode: string;
 }
 
 export interface TimezoneConversionItem {
   timezone: string;
   cityLabel: string;
-  flagCode: string;
   dateLabel: string;
   timeLabel: string;
   weekdayLabel: string;

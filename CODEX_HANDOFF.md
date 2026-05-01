@@ -68,6 +68,8 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - UTC is displayed as a top inline reference instead of a city card.
   - Default cards include Bangkok, Los Angeles, Durham NC (`America/New_York`), China (`Asia/Shanghai`), Italy (`Europe/Rome`), Tokyo.
   - User-added timezone cards are persisted in browser `localStorage` under `jarvis-prime.timezones`.
+  - Add city uses the browser IANA timezone list via `Intl.supportedValuesOf("timeZone")`, with configured timezones as fallback.
+  - Flag badges were removed to avoid external image/CDN dependency.
   - Uses `tool:timezone` in `compute-worker`.
 - Factory Clock
   - Live local clock, UTC, current shift, next shift, shift-change remaining time.
