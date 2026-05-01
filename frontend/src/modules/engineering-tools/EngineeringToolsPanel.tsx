@@ -23,11 +23,49 @@ type StopwatchLap = {
 
 type ActiveTool = "workweek" | "factory-clock" | "stopwatch";
 
+type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
+
 const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = [
   { id: "workweek", label: "WorkWeek", category: "Time and shift" },
   { id: "factory-clock", label: "Factory Clock", category: "Clock" },
   { id: "stopwatch", label: "Stopwatch", category: "Manufacturing" },
 ];
+
+class StopwatchActionButtonModel {
+  readonly label: string;
+  readonly variant: StopwatchActionVariant;
+  readonly ariaLabel: string;
+
+  constructor(label: string, variant: StopwatchActionVariant, ariaLabel = label) {
+    this.label = label;
+    this.variant = variant;
+    this.ariaLabel = ariaLabel;
+  }
+
+  get className(): string {
+    return `round-action round-action-${this.variant}`;
+  }
+}
+
+type RoundActionButtonProps = {
+  disabled?: boolean;
+  model: StopwatchActionButtonModel;
+  onClick: () => void;
+};
+
+function RoundActionButton({ disabled = false, model, onClick }: RoundActionButtonProps) {
+  return (
+    <button
+      aria-label={model.ariaLabel}
+      className={model.className}
+      disabled={disabled}
+      type="button"
+      onClick={onClick}
+    >
+      <span>{model.label}</span>
+    </button>
+  );
+}
 
 const pad = (value: number): string => String(value).padStart(2, "0");
 
@@ -118,6 +156,27 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const elapsedMs =
     stopwatchBaseMs +
     (isStopwatchRunning && stopwatchStartedAt ? stopwatchNowMs - stopwatchStartedAt : 0);
+  const primaryStopwatchAction = useMemo(
+    () =>
+      new StopwatchActionButtonModel(
+        isStopwatchRunning ? "Stop" : "Start",
+        isStopwatchRunning ? "stop" : "start",
+        isStopwatchRunning ? "Stop stopwatch" : "Start stopwatch",
+      ),
+    [isStopwatchRunning],
+  );
+  const lapStopwatchAction = useMemo(
+    () => new StopwatchActionButtonModel("Lap", "lap", "Record lap"),
+    [],
+  );
+  const resetStopwatchAction = useMemo(
+    () => new StopwatchActionButtonModel("Reset", "reset", "Reset stopwatch"),
+    [],
+  );
+  const exportStopwatchAction = useMemo(
+    () => new StopwatchActionButtonModel("Excel", "export", "Export stopwatch history to Excel"),
+    [],
+  );
 
   const requestPayload = useMemo<WeekShiftRequestPayload>(
     () => ({
@@ -399,28 +458,22 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
             <strong>{formatDuration(elapsedMs)}</strong>
           </div>
 
-          <div className="round-control-row" aria-label="Stopwatch controls">
-            <button
-              className="round-action primary"
-              type="button"
-              onClick={isStopwatchRunning ? stopStopwatch : startStopwatch}
-            >
-              {isStopwatchRunning ? "Stop" : "Start"}
-            </button>
-            <button className="round-action" type="button" onClick={recordLap}>
-              Lap
-            </button>
-            <button className="round-action" type="button" onClick={resetStopwatch}>
-              Reset
-            </button>
-            <button
-              className="round-action export"
-              disabled={stopwatchHistory.length === 0}
-              type="button"
-              onClick={() => exportStopwatchHistory(stopwatchHistory)}
-            >
-              Excel
-            </button>
+          <div className="stopwatch-actions" aria-label="Stopwatch controls">
+            <div className="export-control-group">
+              <RoundActionButton
+                disabled={stopwatchHistory.length === 0}
+                model={exportStopwatchAction}
+                onClick={() => exportStopwatchHistory(stopwatchHistory)}
+              />
+            </div>
+            <div className="round-control-row">
+              <RoundActionButton
+                model={primaryStopwatchAction}
+                onClick={isStopwatchRunning ? stopStopwatch : startStopwatch}
+              />
+              <RoundActionButton model={lapStopwatchAction} onClick={recordLap} />
+              <RoundActionButton model={resetStopwatchAction} onClick={resetStopwatch} />
+            </div>
           </div>
 
           <div className="history-panel">
