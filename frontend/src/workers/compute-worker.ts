@@ -9,6 +9,8 @@ import type {
   TimezoneConversionRequestPayload,
   TimezoneConversionResultPayload,
   TimezoneTargetConfig,
+  UnitConvertRequestPayload,
+  UnitConvertResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
   WorkerEnvelope,
@@ -487,6 +489,161 @@ function calculateAlarmDecode(payload: AlarmDecodeRequestPayload): AlarmDecodeRe
   };
 }
 
+type UnitDefinition = {
+  label: string;
+  factorToBase?: number;
+};
+
+const unitTables: Record<
+  Exclude<UnitConvertRequestPayload["category"], "temperature">,
+  {
+    baseUnit: string;
+    units: Record<string, UnitDefinition>;
+  }
+> = {
+  length: {
+    baseUnit: "m",
+    units: {
+      mm: { label: "millimeter", factorToBase: 0.001 },
+      cm: { label: "centimeter", factorToBase: 0.01 },
+      m: { label: "meter", factorToBase: 1 },
+      km: { label: "kilometer", factorToBase: 1000 },
+      in: { label: "inch", factorToBase: 0.0254 },
+      ft: { label: "foot", factorToBase: 0.3048 },
+      mil: { label: "mil", factorToBase: 0.0000254 },
+      um: { label: "micrometer", factorToBase: 0.000001 },
+    },
+  },
+  pressure: {
+    baseUnit: "Pa",
+    units: {
+      Pa: { label: "pascal", factorToBase: 1 },
+      kPa: { label: "kilopascal", factorToBase: 1000 },
+      MPa: { label: "megapascal", factorToBase: 1000000 },
+      bar: { label: "bar", factorToBase: 100000 },
+      psi: { label: "pound per square inch", factorToBase: 6894.757293168 },
+      atm: { label: "standard atmosphere", factorToBase: 101325 },
+      torr: { label: "torr", factorToBase: 133.3223684211 },
+    },
+  },
+  vacuum: {
+    baseUnit: "Pa",
+    units: {
+      Pa: { label: "pascal", factorToBase: 1 },
+      kPa: { label: "kilopascal", factorToBase: 1000 },
+      torr: { label: "torr", factorToBase: 133.3223684211 },
+      mTorr: { label: "millitorr", factorToBase: 0.1333223684211 },
+      uTorr: { label: "microtorr", factorToBase: 0.0001333223684211 },
+      mbar: { label: "millibar", factorToBase: 100 },
+    },
+  },
+  mass: {
+    baseUnit: "g",
+    units: {
+      mg: { label: "milligram", factorToBase: 0.001 },
+      g: { label: "gram", factorToBase: 1 },
+      kg: { label: "kilogram", factorToBase: 1000 },
+      oz: { label: "ounce", factorToBase: 28.349523125 },
+      lb: { label: "pound", factorToBase: 453.59237 },
+    },
+  },
+};
+
+const temperatureUnits: Record<string, UnitDefinition> = {
+  C: { label: "Celsius" },
+  F: { label: "Fahrenheit" },
+  K: { label: "Kelvin" },
+};
+
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: Math.abs(value) >= 1000 ? 3 : 6,
+    minimumFractionDigits: 0,
+  }).format(value);
+}
+
+function convertTemperature(value: number, fromUnit: string, toUnit: string): number {
+  const celsius =
+    fromUnit === "C" ? value : fromUnit === "F" ? ((value - 32) * 5) / 9 : value - 273.15;
+
+  if (toUnit === "C") {
+    return celsius;
+  }
+
+  if (toUnit === "F") {
+    return (celsius * 9) / 5 + 32;
+  }
+
+  return celsius + 273.15;
+}
+
+function calculateUnitConvert(payload: UnitConvertRequestPayload): UnitConvertResultPayload {
+  const inputValue = Number(payload.inputValue);
+
+  if (!Number.isFinite(inputValue)) {
+    throw new Error("Enter a valid numeric value.");
+  }
+
+  if (payload.category === "temperature") {
+    if (!temperatureUnits[payload.fromUnit] || !temperatureUnits[payload.toUnit]) {
+      throw new Error("Unsupported temperature unit.");
+    }
+
+    const outputValue = convertTemperature(inputValue, payload.fromUnit, payload.toUnit);
+
+    return {
+      category: payload.category,
+      inputValue,
+      inputLabel: `${formatNumber(inputValue)} ${payload.fromUnit}`,
+      outputValue,
+      outputLabel: `${formatNumber(outputValue)} ${payload.toUnit}`,
+      formula: `Convert ${payload.fromUnit} to Celsius, then Celsius to ${payload.toUnit}.`,
+      relatedValues: Object.entries(temperatureUnits).map(([unit, definition]) => {
+        const value = convertTemperature(inputValue, payload.fromUnit, unit);
+
+        return {
+          unit,
+          label: definition.label,
+          value,
+          formattedValue: `${formatNumber(value)} ${unit}`,
+        };
+      }),
+    };
+  }
+
+  const table = unitTables[payload.category];
+
+  if (!table?.units[payload.fromUnit] || !table.units[payload.toUnit]) {
+    throw new Error("Unsupported unit selection.");
+  }
+
+  const baseValue = inputValue * (table.units[payload.fromUnit].factorToBase ?? 1);
+  const outputValue = baseValue / (table.units[payload.toUnit].factorToBase ?? 1);
+
+  return {
+    category: payload.category,
+    inputValue,
+    inputLabel: `${formatNumber(inputValue)} ${payload.fromUnit}`,
+    outputValue,
+    outputLabel: `${formatNumber(outputValue)} ${payload.toUnit}`,
+    formula: `${formatNumber(inputValue)} ${payload.fromUnit} -> ${formatNumber(baseValue)} ${table.baseUnit} -> ${payload.toUnit}`,
+    relatedValues: Object.entries(table.units).map(([unit, definition]) => {
+      const value = baseValue / (definition.factorToBase ?? 1);
+
+      return {
+        unit,
+        label: definition.label,
+        value,
+        formattedValue: `${formatNumber(value)} ${unit}`,
+      };
+    }),
+  };
+}
+
 scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
   const message = event.data;
 
@@ -525,6 +682,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:alarm-decode") {
       const payload = calculateAlarmDecode(message.payload as AlarmDecodeRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:alarm-decode:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:unit-convert") {
+      const payload = calculateUnitConvert(message.payload as UnitConvertRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:unit-convert:result", payload });
       return;
     }
 

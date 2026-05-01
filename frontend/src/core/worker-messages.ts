@@ -116,6 +116,30 @@ export interface AlarmDecodeResultPayload {
   parsedFields: AlarmDecodedField[];
 }
 
+export type UnitConverterCategory = "length" | "temperature" | "pressure" | "vacuum" | "mass";
+
+export interface UnitConvertRequestPayload {
+  category: UnitConverterCategory;
+  inputValue: number;
+  fromUnit: string;
+  toUnit: string;
+}
+
+export interface UnitConvertResultPayload {
+  category: UnitConverterCategory;
+  inputValue: number;
+  inputLabel: string;
+  outputValue: number;
+  outputLabel: string;
+  formula: string;
+  relatedValues: Array<{
+    unit: string;
+    label: string;
+    value: number;
+    formattedValue: string;
+  }>;
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;

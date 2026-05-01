@@ -83,6 +83,10 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Decodes pasted SECS/GEM-style alarm payloads such as `S5F1 ALCD=0x85 ALID=3001 ALTX="..."`.
   - Parses ALCD, ALID, ALTX, set/clear state, category, severity, and recommended actions.
   - Uses `tool:alarm-decode` in `compute-worker`.
+- Unit Converter
+  - Converts Length, Temperature, Pressure, Vacuum, and Mass.
+  - Shows the primary converted value, formula path, all related values in the selected category, and a Swap action.
+  - Uses `tool:unit-convert` in `compute-worker`.
 
 ## UI System Notes
 
@@ -95,22 +99,22 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
 
 ## Recommended Next Tool
 
-Add `Unit Converter` next.
+Add `Yield / scrap / UPH calculator` next.
 
-Suggested first categories:
+Suggested first fields:
 
-- Length: mm, cm, m, inch, mil
-- Temperature: C, F, K
-- Pressure: Pa, kPa, bar, psi, torr
-- Vacuum: torr, mTorr, Pa
-- Mass: mg, g, kg, lb
+- Input quantity
+- Good quantity
+- Scrap quantity
+- Runtime minutes
+- Target UPH
 
 Suggested implementation pattern:
 
-1. Add `unit-converter` to `ActiveTool`.
+1. Add `yield-calculator` to `ActiveTool`.
 2. Add item to `toolOptions`.
 3. Add request/result types in `frontend/src/core/worker-messages.ts`.
-4. Add `tool:unit-converter` handler in `frontend/src/workers/compute-worker.ts`.
+4. Add `tool:yield-calculate` handler in `frontend/src/workers/compute-worker.ts`.
 5. Add one active tool render block in `EngineeringToolsPanel.tsx`.
 6. Add focused CSS using existing tokens in `App.css`.
 7. Run `npm run typecheck` and `npm run build`.

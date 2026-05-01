@@ -6,6 +6,8 @@ import type {
   FactoryClockResultPayload,
   TimezoneConversionResultPayload,
   TimezoneTargetConfig,
+  UnitConverterCategory,
+  UnitConvertResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
 } from "../../core/worker-messages";
@@ -31,7 +33,8 @@ type ActiveTool =
   | "timezone"
   | "factory-clock"
   | "stopwatch"
-  | "alarm-decoder";
+  | "alarm-decoder"
+  | "unit-converter";
 
 type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
 
@@ -42,7 +45,71 @@ const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = 
   { id: "factory-clock", label: "Factory Clock", category: "Clock" },
   { id: "stopwatch", label: "Stopwatch", category: "Manufacturing" },
   { id: "alarm-decoder", label: "Alarm Decoder", category: "Factory tools" },
+  { id: "unit-converter", label: "Unit Converter", category: "Engineering math" },
 ];
+
+const unitCatalog: Record<
+  UnitConverterCategory,
+  {
+    label: string;
+    units: Array<{ id: string; label: string }>;
+  }
+> = {
+  length: {
+    label: "Length",
+    units: [
+      { id: "mm", label: "millimeter" },
+      { id: "cm", label: "centimeter" },
+      { id: "m", label: "meter" },
+      { id: "km", label: "kilometer" },
+      { id: "in", label: "inch" },
+      { id: "ft", label: "foot" },
+      { id: "mil", label: "mil" },
+      { id: "um", label: "micrometer" },
+    ],
+  },
+  temperature: {
+    label: "Temperature",
+    units: [
+      { id: "C", label: "Celsius" },
+      { id: "F", label: "Fahrenheit" },
+      { id: "K", label: "Kelvin" },
+    ],
+  },
+  pressure: {
+    label: "Pressure",
+    units: [
+      { id: "Pa", label: "pascal" },
+      { id: "kPa", label: "kilopascal" },
+      { id: "MPa", label: "megapascal" },
+      { id: "bar", label: "bar" },
+      { id: "psi", label: "psi" },
+      { id: "atm", label: "atmosphere" },
+      { id: "torr", label: "torr" },
+    ],
+  },
+  vacuum: {
+    label: "Vacuum",
+    units: [
+      { id: "Pa", label: "pascal" },
+      { id: "kPa", label: "kilopascal" },
+      { id: "torr", label: "torr" },
+      { id: "mTorr", label: "millitorr" },
+      { id: "uTorr", label: "microtorr" },
+      { id: "mbar", label: "millibar" },
+    ],
+  },
+  mass: {
+    label: "Mass",
+    units: [
+      { id: "mg", label: "milligram" },
+      { id: "g", label: "gram" },
+      { id: "kg", label: "kilogram" },
+      { id: "oz", label: "ounce" },
+      { id: "lb", label: "pound" },
+    ],
+  },
+};
 
 type TimezoneConfig = {
   sourceTimezones: TimezoneTargetConfig[];
@@ -265,6 +332,10 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [alarmRaw, setAlarmRaw] = useState(
     'S5F1 ALCD=0x85 ALID=3001 ALTX="Chamber pressure interlock"',
   );
+  const [unitCategory, setUnitCategory] = useState<UnitConverterCategory>("length");
+  const [unitInputValue, setUnitInputValue] = useState(25.4);
+  const [unitFrom, setUnitFrom] = useState("mm");
+  const [unitTo, setUnitTo] = useState("in");
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
   const [shiftLengthHours, setShiftLengthHours] = useState(12);
   const [result, setResult] = useState<WeekShiftResultPayload | null>(null);
@@ -274,16 +345,19 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   );
   const [clock, setClock] = useState<FactoryClockResultPayload | null>(null);
   const [alarmResult, setAlarmResult] = useState<AlarmDecodeResultPayload | null>(null);
+  const [unitResult, setUnitResult] = useState<UnitConvertResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
   const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
   const [timezoneStatus, setTimezoneStatus] = useState<ToolStatus>("idle");
   const [clockStatus, setClockStatus] = useState<ToolStatus>("idle");
   const [alarmStatus, setAlarmStatus] = useState<ToolStatus>("idle");
+  const [unitStatus, setUnitStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [clockError, setClockError] = useState<string | null>(null);
   const [alarmError, setAlarmError] = useState<string | null>(null);
+  const [unitError, setUnitError] = useState<string | null>(null);
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
   const [stopwatchBaseMs, setStopwatchBaseMs] = useState(0);
@@ -353,6 +427,16 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       rawAlarm: alarmRaw,
     }),
     [alarmRaw],
+  );
+  const unitOptions = unitCatalog[unitCategory].units;
+  const unitPayload = useMemo(
+    () => ({
+      category: unitCategory,
+      inputValue: unitInputValue,
+      fromUnit: unitFrom,
+      toUnit: unitTo,
+    }),
+    [unitCategory, unitFrom, unitInputValue, unitTo],
   );
   const availableTimezoneNames = useMemo(() => {
     const intlWithTimezoneList = Intl as typeof Intl & {
@@ -526,6 +610,48 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [alarmPayload, workerHost]);
+
+  useEffect(() => {
+    const units = unitCatalog[unitCategory].units;
+
+    if (!units.some((unit) => unit.id === unitFrom)) {
+      setUnitFrom(units[0]?.id ?? "");
+    }
+
+    if (!units.some((unit) => unit.id === unitTo)) {
+      setUnitTo(units[1]?.id ?? units[0]?.id ?? "");
+    }
+  }, [unitCategory, unitFrom, unitTo]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setUnitStatus("running");
+    setUnitError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<UnitConvertResultPayload>("compute", "tool:unit-convert", unitPayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+          setUnitResult(payload);
+          setUnitStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+          setUnitStatus("error");
+          setUnitError(reason instanceof Error ? reason.message : "Unable to convert units.");
+        });
+    }, 120);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [unitPayload, workerHost]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -1141,6 +1267,109 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           </div>
         </article>
         ) : null}
+
+        {activeTool === "unit-converter" ? (
+        <article className="panel tool-card unit-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Engineering math</p>
+              <h3>Unit Converter</h3>
+            </div>
+            <span className={`status-chip status-${unitStatus}`}>{unitStatus}</span>
+          </div>
+
+          <div className="tool-form unit-form">
+            <label>
+              <span>Category</span>
+              <select
+                value={unitCategory}
+                onChange={(event) => {
+                  const nextCategory = event.target.value as UnitConverterCategory;
+                  const nextUnits = unitCatalog[nextCategory].units;
+
+                  setUnitCategory(nextCategory);
+                  setUnitFrom(nextUnits[0]?.id ?? "");
+                  setUnitTo(nextUnits[1]?.id ?? nextUnits[0]?.id ?? "");
+                }}
+              >
+                {Object.entries(unitCatalog).map(([category, config]) => (
+                  <option key={category} value={category}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Value</span>
+              <input
+                type="number"
+                value={unitInputValue}
+                onChange={(event) => setUnitInputValue(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>From</span>
+              <select value={unitFrom} onChange={(event) => setUnitFrom(event.target.value)}>
+                {unitOptions.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.id} · {unit.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>To</span>
+              <select value={unitTo} onChange={(event) => setUnitTo(event.target.value)}>
+                {unitOptions.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.id} · {unit.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {unitError ? <div className="error-note">{unitError}</div> : null}
+
+          <div className="unit-conversion-stage" aria-live="polite">
+            <div>
+              <span>{unitCatalog[unitCategory].label}</span>
+              <strong>{unitResult?.outputLabel ?? "--"}</strong>
+              <p>{unitResult?.inputLabel ?? "--"} converts to</p>
+            </div>
+            <button
+              className="swap-unit-button"
+              type="button"
+              onClick={() => {
+                setUnitFrom(unitTo);
+                setUnitTo(unitFrom);
+              }}
+            >
+              Swap
+            </button>
+          </div>
+
+          <div className="history-panel">
+            <div className="history-header">
+              <span>Formula</span>
+              <strong>{unitResult?.category ?? unitCategory}</strong>
+            </div>
+            <p className="unit-formula">{unitResult?.formula ?? "--"}</p>
+          </div>
+
+          <div className="unit-result-grid">
+            {unitResult?.relatedValues.map((item) => (
+              <article className="unit-result-card" key={item.unit}>
+                <span>{item.label}</span>
+                <strong>{item.formattedValue}</strong>
+              </article>
+            )) ?? null}
+          </div>
+        </article>
+        ) : null}
         </div>
 
         <aside className="panel tool-library">
@@ -1163,7 +1392,6 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
 
           <p className="eyebrow library-subtitle">Coming next</p>
           <ul>
-            <li>Unit converter</li>
             <li>Yield / scrap / UPH calculator</li>
             <li>CSV and log quick parser</li>
           </ul>
