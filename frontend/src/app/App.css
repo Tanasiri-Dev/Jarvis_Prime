@@ -482,15 +482,17 @@ a {
 
 .tool-library {
   position: sticky;
-  top: 20px;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
+  top: 104px;
+  max-height: min(640px, calc(100vh - 160px));
+  overflow-y: hidden;
+  overscroll-behavior: contain;
   scrollbar-gutter: stable;
   scrollbar-width: none;
 }
 
 .tool-library:hover,
 .tool-library:focus-within {
+  overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--brand-border) transparent;
 }

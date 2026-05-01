@@ -101,7 +101,7 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
 - Theme styling is tokenized in `frontend/src/app/App.css`.
 - Tool Library is on the right and selects one active tool at a time.
 - Tool Library groups are ordered: Week, Day, Time, Unit Convert, Decoder.
-- Tool Library has a constrained height and reveals its scrollbar only on hover/focus.
+- Tool Library has an independent constrained scroll container and reveals its vertical scrollbar only on hover/focus.
 - Avoid showing all tools at once. Add new tools as selectable tool cards.
 - Preserve responsive layouts.
 
