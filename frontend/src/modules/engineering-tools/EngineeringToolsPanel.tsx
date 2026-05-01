@@ -13,12 +13,81 @@ type EngineeringToolsPanelProps = {
 
 type ToolStatus = "idle" | "running" | "ready" | "error";
 
+type StopwatchLap = {
+  id: number;
+  lapNumber: number;
+  lapMs: number;
+  totalMs: number;
+  timestamp: string;
+};
+
 const pad = (value: number): string => String(value).padStart(2, "0");
 
 function toDatetimeLocalValue(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
     date.getHours(),
   )}:${pad(date.getMinutes())}`;
+}
+
+function formatDuration(milliseconds: number): string {
+  const totalMilliseconds = Math.max(0, Math.floor(milliseconds));
+  const minutes = Math.floor(totalMilliseconds / 60000);
+  const seconds = Math.floor((totalMilliseconds % 60000) / 1000);
+  const centiseconds = Math.floor((totalMilliseconds % 1000) / 10);
+
+  return `${pad(minutes)}:${pad(seconds)}.${pad(centiseconds)}`;
+}
+
+function escapeExcelCell(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function exportStopwatchHistory(laps: StopwatchLap[]): void {
+  const rows = laps.map(
+    (lap) => `
+      <tr>
+        <td>${lap.lapNumber}</td>
+        <td>${escapeExcelCell(lap.timestamp)}</td>
+        <td>${escapeExcelCell(formatDuration(lap.lapMs))}</td>
+        <td>${escapeExcelCell(formatDuration(lap.totalMs))}</td>
+      </tr>`,
+  );
+  const worksheet = `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <style>
+          table { border-collapse: collapse; font-family: Arial, sans-serif; }
+          th, td { border: 1px solid #9ca3af; padding: 8px 10px; }
+          th { background: #dbeafe; font-weight: 700; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <thead>
+            <tr>
+              <th>Lap</th>
+              <th>Timestamp</th>
+              <th>Lap Time</th>
+              <th>Total Time</th>
+            </tr>
+          </thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>
+      </body>
+    </html>`;
+  const blob = new Blob([worksheet], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `jarvis-prime-stopwatch-${new Date().toISOString().slice(0, 10)}.xls`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps) {
@@ -31,6 +100,15 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [clockStatus, setClockStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [clockError, setClockError] = useState<string | null>(null);
+  const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
+  const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
+  const [stopwatchBaseMs, setStopwatchBaseMs] = useState(0);
+  const [stopwatchNowMs, setStopwatchNowMs] = useState(Date.now());
+  const [stopwatchHistory, setStopwatchHistory] = useState<StopwatchLap[]>([]);
+
+  const elapsedMs =
+    stopwatchBaseMs +
+    (isStopwatchRunning && stopwatchStartedAt ? stopwatchNowMs - stopwatchStartedAt : 0);
 
   const requestPayload = useMemo<WeekShiftRequestPayload>(
     () => ({
@@ -107,6 +185,67 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearInterval(intervalId);
     };
   }, [requestPayload, workerHost]);
+
+  useEffect(() => {
+    if (!isStopwatchRunning) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => setStopwatchNowMs(Date.now()), 50);
+    return () => window.clearInterval(intervalId);
+  }, [isStopwatchRunning]);
+
+  const startStopwatch = () => {
+    if (isStopwatchRunning) {
+      return;
+    }
+
+    setStopwatchStartedAt(Date.now());
+    setStopwatchNowMs(Date.now());
+    setIsStopwatchRunning(true);
+  };
+
+  const stopStopwatch = () => {
+    if (!isStopwatchRunning || !stopwatchStartedAt) {
+      return;
+    }
+
+    const stoppedAt = Date.now();
+    setStopwatchBaseMs((current) => current + stoppedAt - stopwatchStartedAt);
+    setStopwatchNowMs(stoppedAt);
+    setStopwatchStartedAt(null);
+    setIsStopwatchRunning(false);
+  };
+
+  const resetStopwatch = () => {
+    setIsStopwatchRunning(false);
+    setStopwatchStartedAt(null);
+    setStopwatchBaseMs(0);
+    setStopwatchNowMs(Date.now());
+    setStopwatchHistory([]);
+  };
+
+  const recordLap = () => {
+    if (elapsedMs <= 0) {
+      return;
+    }
+
+    setStopwatchHistory((current) => {
+      const previousTotal = current.at(0)?.totalMs ?? 0;
+      const lapNumber = current.length + 1;
+
+      return [
+        {
+          id: Date.now(),
+          lapNumber,
+          lapMs: elapsedMs - previousTotal,
+          totalMs: elapsedMs,
+          timestamp: new Date().toLocaleString(),
+        },
+        ...current,
+      ];
+    });
+  };
 
   return (
     <section id="engineering-tools" className="tools-layout" aria-label="Engineering Tools">
@@ -227,6 +366,80 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           <p className="tool-note">
             Next shift change: <strong>{clock?.nextShiftChange ?? "--"}</strong>
           </p>
+        </article>
+
+        <article className="panel tool-card stopwatch-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Manufacturing</p>
+              <h3>Process Stopwatch</h3>
+            </div>
+            <span className={`status-chip ${isStopwatchRunning ? "status-running" : "status-ready"}`}>
+              {isStopwatchRunning ? "running" : "ready"}
+            </span>
+          </div>
+
+          <div className="stopwatch-face" aria-live="polite">
+            <span>Elapsed process time</span>
+            <strong>{formatDuration(elapsedMs)}</strong>
+          </div>
+
+          <div className="round-control-row" aria-label="Stopwatch controls">
+            <button
+              className="round-action primary"
+              type="button"
+              onClick={isStopwatchRunning ? stopStopwatch : startStopwatch}
+            >
+              {isStopwatchRunning ? "Stop" : "Start"}
+            </button>
+            <button className="round-action" type="button" onClick={recordLap}>
+              Lap
+            </button>
+            <button className="round-action" type="button" onClick={resetStopwatch}>
+              Reset
+            </button>
+            <button
+              className="round-action export"
+              disabled={stopwatchHistory.length === 0}
+              type="button"
+              onClick={() => exportStopwatchHistory(stopwatchHistory)}
+            >
+              Excel
+            </button>
+          </div>
+
+          <div className="history-panel">
+            <div className="history-header">
+              <span>History</span>
+              <strong>{stopwatchHistory.length}</strong>
+            </div>
+            {stopwatchHistory.length > 0 ? (
+              <div className="history-table-wrap">
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      <th>Lap</th>
+                      <th>Timestamp</th>
+                      <th>Lap time</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stopwatchHistory.map((lap) => (
+                      <tr key={lap.id}>
+                        <td>{lap.lapNumber}</td>
+                        <td>{lap.timestamp}</td>
+                        <td>{formatDuration(lap.lapMs)}</td>
+                        <td>{formatDuration(lap.totalMs)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="empty-history">No laps recorded yet.</p>
+            )}
+          </div>
         </article>
 
         <aside className="panel tool-library">
