@@ -1,6 +1,6 @@
 # Jarvis Prime Development Plan
 
-This plan turns the product vision in `CLAUDE.md` into buildable phases. Each phase should finish with tests, documentation updates, and at least one usable vertical slice.
+This plan turns the product vision in `CODEX.md` into buildable phases. Each phase should finish with tests, documentation updates, and at least one usable vertical slice.
 
 ---
 
@@ -31,7 +31,7 @@ Goal: establish architecture, repo layout, development workflow, and proof that 
 
 Deliverables:
 
-- `CLAUDE.md`, `DEVELOPMENT_PLAN.md`, README, ADR template.
+- `CODEX.md`, `DEVELOPMENT_PLAN.md`, README, ADR template.
 - ADR-0001 through ADR-0004 accepted.
 - Monorepo layout for `backend`, `frontend`, `infra`, `docs`, `scripts`.
 - FastAPI health endpoint.
@@ -282,7 +282,7 @@ Acceptance:
 
 A feature is done only when:
 
-- It follows `CLAUDE.md` hard rules.
+- It follows `CODEX.md` hard rules.
 - Server-side permissions are enforced.
 - Tests cover success and failure paths.
 - Performance-sensitive code is worker-isolated.

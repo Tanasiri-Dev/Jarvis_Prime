@@ -4,7 +4,7 @@ Jarvis Prime is an AI-assisted daily work and engineering web platform for semic
 
 Read these first:
 
-- [CLAUDE.md](CLAUDE.md) - project mission, non-negotiable rules, architecture, roles, and conventions.
+- [CODEX.md](CODEX.md) - project mission, non-negotiable rules, Codex workflow, architecture, roles, and conventions.
 - [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) - phased delivery plan.
 - [docs/product/app-blueprint.md](docs/product/app-blueprint.md) - web app design blueprint.
 - [docs/adr/0000-template.md](docs/adr/0000-template.md) - ADR format.

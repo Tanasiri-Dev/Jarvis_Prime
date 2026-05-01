@@ -12,6 +12,7 @@ Use this file to resume development quickly with Codex without restating the who
 
 ## Architecture Rules To Preserve
 
+- Project source-of-truth rules live in `CODEX.md`.
 - React + TypeScript + Vite frontend, chosen in `docs/adr/0001-frontend-framework.md`.
 - Heavy calculation runs through `WorkerHost` and `compute-worker`.
 - Canvas rendering remains off-main-thread through `render-worker` and `OffscreenCanvas`.
@@ -81,7 +82,8 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
 
 ## UI System Notes
 
-- Themes: Dark, White, Gradient.
+- Theme switcher is compact icon-only: moon for dark, sun for white.
+- Default dark theme follows the `CODEX.md` crypto-native glassmorphism direction: dark glass panels, luminous borders, sticky glass top bar, and stronger glow on hover.
 - Theme styling is tokenized in `frontend/src/app/App.css`.
 - Tool Library is on the right and selects one active tool at a time.
 - Avoid showing all tools at once. Add new tools as selectable tool cards.

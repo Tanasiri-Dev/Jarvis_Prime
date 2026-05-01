@@ -15,9 +15,8 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/a
 const themeStorageKey = "jarvis-prime.theme";
 
 const themeOptions = [
-  { id: "dark", label: "Dark" },
-  { id: "white", label: "White" },
-  { id: "gradient", label: "Gradient" },
+  { id: "dark", label: "Dark", icon: "☾" },
+  { id: "white", label: "White", icon: "☀" },
 ] as const;
 
 type ThemeMode = (typeof themeOptions)[number]["id"];
@@ -163,12 +162,14 @@ export function App() {
               {themeOptions.map((option) => (
                 <button
                   key={option.id}
+                  aria-label={`Use ${option.label} theme`}
                   aria-pressed={theme === option.id}
                   className="theme-option"
+                  title={option.label}
                   type="button"
                   onClick={() => setTheme(option.id)}
                 >
-                  {option.label}
+                  <span aria-hidden="true">{option.icon}</span>
                 </button>
               ))}
             </div>

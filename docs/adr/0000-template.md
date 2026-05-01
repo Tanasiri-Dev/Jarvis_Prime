@@ -40,4 +40,4 @@ How will we know this decision is working?
 
 ## Related Rules
 
-Reference relevant rules from `CLAUDE.md`, such as R1, R2, or R6.
+Reference relevant rules from `CODEX.md`, such as R1, R2, or R6.

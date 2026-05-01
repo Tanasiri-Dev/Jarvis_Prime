@@ -1,6 +1,6 @@
-# Jarvis Prime - Assistance Web Platform
+# Jarvis Prime - Codex Engineering Rules
 
-> Source of truth for project vision, hard architectural rules, product scope, conventions, and historical decisions. Read this first in every AI-assisted coding session.
+> Source of truth for project vision, hard architectural rules, product scope, Codex collaboration rules, conventions, and historical decisions. Read this first in every Codex-assisted coding session.
 
 ---
 
@@ -126,6 +126,13 @@ The first screen after login is the **Command Center**, not a landing page. It s
 
 ### Design Standard
 
+- Default dark theme follows a crypto-native glassmorphism direction inspired by:
+  - `https://ui-ux-pro-max-skill.nextlevelbuilder.io/demo/crypto-wallet`
+  - `https://ui-ux-pro-max-skill.nextlevelbuilder.io/#styles`
+- The default visual language should feel like a secure crypto wallet landing page adapted for engineering tools: dark glass panels, multi-layer depth, subtle neon edge light, security-grade polish, and confident call-to-action controls.
+- Blocks and buttons use luminous borders and soft glow. On hover, the glow blooms outward while staying readable and performant.
+- The top menu stays above page content as a sticky glassmorphism bar.
+- Theme switching uses compact sun/moon icon buttons only, not large text labels.
 - Dense, calm, premium SaaS dashboard style.
 - Industrial clarity over decorative composition.
 - 8-point spacing grid.
@@ -322,7 +329,7 @@ Budget violations require a tracked performance ticket or ADR before merge.
 
 ```text
 jarvis-prime/
-  CLAUDE.md
+  CODEX.md
   README.md
   DEVELOPMENT_PLAN.md
   docs/
