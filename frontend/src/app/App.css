@@ -496,7 +496,24 @@ a {
   padding: 9px 11px;
 }
 
+.tool-form select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-control);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 9px 11px;
+}
+
 .tool-form input:focus {
+  border-color: var(--brand-border);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
+}
+
+.tool-form select:focus {
   border-color: var(--brand-border);
   outline: 2px solid var(--accent-soft);
   outline-offset: 1px;
@@ -504,6 +521,10 @@ a {
 
 .duration-form {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.timezone-form {
+  grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.55fr);
 }
 
 .result-grid {
@@ -582,6 +603,99 @@ a {
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+.timezone-source-card {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 10%, var(--accent-soft), transparent 44%),
+    linear-gradient(135deg, var(--surface-control), transparent),
+    var(--surface-panel);
+  padding: 24px;
+  text-align: center;
+}
+
+.timezone-source-card span,
+.timezone-source-card small,
+.timezone-source-card p {
+  color: var(--text-muted);
+}
+
+.timezone-source-card span {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.timezone-source-card strong {
+  color: var(--text-primary);
+  font-size: clamp(48px, 8vw, 88px);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.timezone-source-card p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.timezone-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.timezone-card {
+  display: grid;
+  gap: 12px;
+  min-height: 150px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 100% 0%, var(--accent-soft), transparent 38%),
+    var(--surface-control);
+  padding: 16px;
+}
+
+.timezone-card div {
+  display: grid;
+  gap: 3px;
+}
+
+.timezone-card span,
+.timezone-card small,
+.timezone-card p {
+  color: var(--text-muted);
+}
+
+.timezone-card span {
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.timezone-card strong {
+  color: var(--text-primary);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.timezone-card p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.timezone-card.day-previous {
+  border-color: rgba(96, 165, 250, 0.34);
+}
+
+.timezone-card.day-next {
+  border-color: rgba(250, 204, 21, 0.34);
 }
 
 .clock-face {
@@ -1030,6 +1144,7 @@ a {
   }
 
   .duration-form,
+  .timezone-form,
   .duration-result-grid {
     grid-template-columns: 1fr;
   }

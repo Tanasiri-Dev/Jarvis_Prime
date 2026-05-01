@@ -3,6 +3,9 @@ import type {
   DurationResultPayload,
   FactoryClockRequestPayload,
   FactoryClockResultPayload,
+  TimezoneConversionItem,
+  TimezoneConversionRequestPayload,
+  TimezoneConversionResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
   WorkerEnvelope,
@@ -41,6 +44,112 @@ const toDurationLabel = (milliseconds: number): string => {
 
   return `${hours} hr ${minutes} min`;
 };
+
+const getTimezoneParts = (date: Date, timezone: string): Record<string, string> => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    weekday: "short",
+    timeZoneName: "shortOffset",
+  }).formatToParts(date);
+
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+};
+
+const getTimezoneOffsetMs = (date: Date, timezone: string): number => {
+  const parts = getTimezoneParts(date, timezone);
+  const asUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second),
+  );
+
+  return asUtc - date.getTime();
+};
+
+function parseZonedLocalTimestamp(localTimestamp: string, timezone: string): Date {
+  const match = localTimestamp.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/,
+  );
+
+  if (!match) {
+    throw new Error("Invalid source date/time input.");
+  }
+
+  const [, year, month, day, hour, minute, second = "00"] = match;
+  const utcGuess = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    ),
+  );
+  const offset = getTimezoneOffsetMs(utcGuess, timezone);
+  const firstPass = new Date(utcGuess.getTime() - offset);
+  const correctedOffset = getTimezoneOffsetMs(firstPass, timezone);
+
+  return new Date(utcGuess.getTime() - correctedOffset);
+}
+
+const getTimezoneDateKey = (date: Date, timezone: string): string => {
+  const parts = getTimezoneParts(date, timezone);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+const getDayRelation = (
+  sourceDate: Date,
+  sourceTimezone: string,
+  targetTimezone: string,
+): TimezoneConversionItem["dayRelation"] => {
+  const sourceKey = getTimezoneDateKey(sourceDate, sourceTimezone);
+  const targetKey = getTimezoneDateKey(sourceDate, targetTimezone);
+
+  if (targetKey < sourceKey) {
+    return "previous";
+  }
+
+  if (targetKey > sourceKey) {
+    return "next";
+  }
+
+  return "same";
+};
+
+const getCityLabel = (timezone: string): string =>
+  timezone
+    .split("/")
+    .at(-1)
+    ?.replaceAll("_", " ") ?? timezone;
+
+function formatTimezoneItem(
+  date: Date,
+  timezone: string,
+  sourceTimezone: string,
+): TimezoneConversionItem {
+  const parts = getTimezoneParts(date, timezone);
+
+  return {
+    timezone,
+    cityLabel: getCityLabel(timezone),
+    dateLabel: `${parts.year}-${parts.month}-${parts.day}`,
+    timeLabel: `${parts.hour}:${parts.minute}:${parts.second}`,
+    weekdayLabel: parts.weekday,
+    offsetLabel: parts.timeZoneName,
+    dayRelation: getDayRelation(date, sourceTimezone, timezone),
+  };
+}
 
 type ShiftDetails = WeekShiftResultPayload & {
   shiftEndDate: Date;
@@ -189,6 +298,23 @@ function calculateDuration(payload: DurationRequestPayload): DurationResultPaylo
   };
 }
 
+function calculateTimezoneConversion(
+  payload: TimezoneConversionRequestPayload,
+): TimezoneConversionResultPayload {
+  const timestamp = parseZonedLocalTimestamp(payload.localTimestamp, payload.sourceTimezone);
+
+  if (Number.isNaN(timestamp.getTime())) {
+    throw new Error("Invalid source date/time input.");
+  }
+
+  const source = formatTimezoneItem(timestamp, payload.sourceTimezone, payload.sourceTimezone);
+  const targets = payload.targetTimezones.map((timezone) =>
+    formatTimezoneItem(timestamp, timezone, payload.sourceTimezone),
+  );
+
+  return { source, targets };
+}
+
 scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
   const message = event.data;
 
@@ -213,6 +339,14 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:duration") {
       const payload = calculateDuration(message.payload as DurationRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:duration:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:timezone") {
+      const payload = calculateTimezoneConversion(
+        message.payload as TimezoneConversionRequestPayload,
+      );
+      scope.postMessage({ id: message.id, type: "tool:timezone:result", payload });
       return;
     }
 

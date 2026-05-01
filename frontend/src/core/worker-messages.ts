@@ -65,6 +65,27 @@ export interface DurationResultPayload {
   crossesMidnight: boolean;
 }
 
+export interface TimezoneConversionRequestPayload {
+  localTimestamp: string;
+  sourceTimezone: string;
+  targetTimezones: string[];
+}
+
+export interface TimezoneConversionItem {
+  timezone: string;
+  cityLabel: string;
+  dateLabel: string;
+  timeLabel: string;
+  weekdayLabel: string;
+  offsetLabel: string;
+  dayRelation: "previous" | "same" | "next";
+}
+
+export interface TimezoneConversionResultPayload {
+  source: TimezoneConversionItem;
+  targets: TimezoneConversionItem[];
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;

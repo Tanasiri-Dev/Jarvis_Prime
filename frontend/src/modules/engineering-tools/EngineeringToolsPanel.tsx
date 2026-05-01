@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   DurationResultPayload,
   FactoryClockResultPayload,
+  TimezoneConversionResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
 } from "../../core/worker-messages";
@@ -22,15 +23,36 @@ type StopwatchLap = {
   timestamp: string;
 };
 
-type ActiveTool = "workweek" | "duration" | "factory-clock" | "stopwatch";
+type ActiveTool = "workweek" | "duration" | "timezone" | "factory-clock" | "stopwatch";
 
 type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
 
 const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = [
   { id: "workweek", label: "WorkWeek", category: "Time and shift" },
   { id: "duration", label: "Duration Calculator", category: "Time and shift" },
+  { id: "timezone", label: "Timezone Converter", category: "Time and shift" },
   { id: "factory-clock", label: "Factory Clock", category: "Clock" },
   { id: "stopwatch", label: "Stopwatch", category: "Manufacturing" },
+];
+
+const timezoneOptions = [
+  "Asia/Bangkok",
+  "UTC",
+  "America/Los_Angeles",
+  "America/New_York",
+  "Europe/Berlin",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Asia/Singapore",
+];
+
+const targetTimezones = [
+  "UTC",
+  "Asia/Bangkok",
+  "America/Los_Angeles",
+  "America/New_York",
+  "Europe/Berlin",
+  "Asia/Tokyo",
 ];
 
 class StopwatchActionButtonModel {
@@ -145,17 +167,24 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [durationEnd, setDurationEnd] = useState(() =>
     toDatetimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)),
   );
+  const [timezoneTimestamp, setTimezoneTimestamp] = useState(() => toDatetimeLocalValue(new Date()));
+  const [sourceTimezone, setSourceTimezone] = useState("Asia/Bangkok");
   const [breakMinutes, setBreakMinutes] = useState(0);
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
   const [shiftLengthHours, setShiftLengthHours] = useState(12);
   const [result, setResult] = useState<WeekShiftResultPayload | null>(null);
   const [durationResult, setDurationResult] = useState<DurationResultPayload | null>(null);
+  const [timezoneResult, setTimezoneResult] = useState<TimezoneConversionResultPayload | null>(
+    null,
+  );
   const [clock, setClock] = useState<FactoryClockResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
   const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
+  const [timezoneStatus, setTimezoneStatus] = useState<ToolStatus>("idle");
   const [clockStatus, setClockStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
+  const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [clockError, setClockError] = useState<string | null>(null);
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
@@ -203,6 +232,14 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       breakMinutes,
     }),
     [breakMinutes, durationEnd, durationStart],
+  );
+  const timezonePayload = useMemo(
+    () => ({
+      localTimestamp: timezoneTimestamp,
+      sourceTimezone,
+      targetTimezones: targetTimezones.filter((timezone) => timezone !== sourceTimezone),
+    }),
+    [sourceTimezone, timezoneTimestamp],
   );
 
   useEffect(() => {
@@ -264,6 +301,36 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [durationPayload, workerHost]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setTimezoneStatus("running");
+    setTimezoneError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<TimezoneConversionResultPayload>("compute", "tool:timezone", timezonePayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+          setTimezoneResult(payload);
+          setTimezoneStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+          setTimezoneStatus("error");
+          setTimezoneError(reason instanceof Error ? reason.message : "Unable to convert timezone.");
+        });
+    }, 120);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [timezonePayload, workerHost]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -508,6 +575,71 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           <div className="duration-summary">
             <span>Start: {durationResult?.startLabel ?? "--"}</span>
             <span>End: {durationResult?.endLabel ?? "--"}</span>
+          </div>
+        </article>
+        ) : null}
+
+        {activeTool === "timezone" ? (
+        <article className="panel tool-card timezone-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Time and shift</p>
+              <h3>Timezone Converter</h3>
+            </div>
+            <span className={`status-chip status-${timezoneStatus}`}>{timezoneStatus}</span>
+          </div>
+
+          <div className="tool-form timezone-form">
+            <label>
+              <span>Source time</span>
+              <input
+                type="datetime-local"
+                value={timezoneTimestamp}
+                onChange={(event) => setTimezoneTimestamp(event.target.value)}
+              />
+            </label>
+
+            <label>
+              <span>Source timezone</span>
+              <select
+                value={sourceTimezone}
+                onChange={(event) => setSourceTimezone(event.target.value)}
+              >
+                {timezoneOptions.map((timezone) => (
+                  <option key={timezone} value={timezone}>
+                    {timezone}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {timezoneError ? <div className="error-note">{timezoneError}</div> : null}
+
+          <div className="timezone-source-card" aria-live="polite">
+            <span>Source</span>
+            <strong>{timezoneResult?.source.timeLabel ?? "--:--:--"}</strong>
+            <small>
+              {timezoneResult?.source.weekdayLabel ?? "--"} ·{" "}
+              {timezoneResult?.source.dateLabel ?? "----"} ·{" "}
+              {timezoneResult?.source.offsetLabel ?? "--"}
+            </small>
+            <p>{timezoneResult?.source.timezone ?? sourceTimezone}</p>
+          </div>
+
+          <div className="timezone-card-grid">
+            {timezoneResult?.targets.map((target) => (
+              <article className={`timezone-card day-${target.dayRelation}`} key={target.timezone}>
+                <div>
+                  <span>{target.cityLabel}</span>
+                  <small>{target.timezone}</small>
+                </div>
+                <strong>{target.timeLabel}</strong>
+                <p>
+                  {target.weekdayLabel} · {target.dateLabel} · {target.offsetLabel}
+                </p>
+              </article>
+            )) ?? null}
           </div>
         </article>
         ) : null}
