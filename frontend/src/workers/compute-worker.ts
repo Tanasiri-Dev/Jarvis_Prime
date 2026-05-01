@@ -127,11 +127,18 @@ const getDayRelation = (
   return "same";
 };
 
+const timezoneCityLabels: Record<string, string> = {
+  "America/New_York": "Durham NC",
+  "Asia/Shanghai": "China",
+};
+
 const getCityLabel = (timezone: string): string =>
+  timezoneCityLabels[timezone] ??
   timezone
     .split("/")
     .at(-1)
-    ?.replaceAll("_", " ") ?? timezone;
+    ?.replaceAll("_", " ") ??
+  timezone;
 
 function formatTimezoneItem(
   date: Date,

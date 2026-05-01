@@ -40,9 +40,8 @@ const timezoneOptions = [
   "UTC",
   "America/Los_Angeles",
   "America/New_York",
-  "Europe/Berlin",
-  "Asia/Tokyo",
   "Asia/Shanghai",
+  "Asia/Tokyo",
   "Asia/Singapore",
 ];
 
@@ -51,7 +50,7 @@ const targetTimezones = [
   "Asia/Bangkok",
   "America/Los_Angeles",
   "America/New_York",
-  "Europe/Berlin",
+  "Asia/Shanghai",
   "Asia/Tokyo",
 ];
 

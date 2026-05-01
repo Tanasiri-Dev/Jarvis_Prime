@@ -8,6 +8,7 @@ Read these first:
 - [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) - phased delivery plan.
 - [docs/product/app-blueprint.md](docs/product/app-blueprint.md) - web app design blueprint.
 - [docs/adr/0000-template.md](docs/adr/0000-template.md) - ADR format.
+- [CODEX_HANDOFF.md](CODEX_HANDOFF.md) - short resume context for future Codex sessions.
 
 ## Target Stack
 
