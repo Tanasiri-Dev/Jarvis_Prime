@@ -79,6 +79,10 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Start/Stop/Lap/Reset plus Excel export.
   - Premium circular action buttons with color variants and shimmer effect.
   - Export is separated from the main stopwatch controls.
+- Alarm Decoder
+  - Decodes pasted SECS/GEM-style alarm payloads such as `S5F1 ALCD=0x85 ALID=3001 ALTX="..."`.
+  - Parses ALCD, ALID, ALTX, set/clear state, category, severity, and recommended actions.
+  - Uses `tool:alarm-decode` in `compute-worker`.
 
 ## UI System Notes
 

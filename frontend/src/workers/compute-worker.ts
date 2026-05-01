@@ -1,4 +1,6 @@
 import type {
+  AlarmDecodeRequestPayload,
+  AlarmDecodeResultPayload,
   DurationRequestPayload,
   DurationResultPayload,
   FactoryClockRequestPayload,
@@ -337,6 +339,154 @@ function calculateTimezoneConversion(
   return { source, utc, targets };
 }
 
+const secsAlarmCategories: Record<number, string> = {
+  0: "Not classified",
+  1: "Personal safety",
+  2: "Equipment safety",
+  3: "Parameter control warning",
+  4: "Parameter control error",
+  5: "Irrecoverable error",
+  6: "Equipment status warning",
+  7: "Attention flag",
+};
+
+function decodeAlarmCode(rawCode: string): number | null {
+  const normalized = rawCode.trim().replaceAll("_", "");
+
+  if (/^0x[\da-f]+$/i.test(normalized)) {
+    return Number.parseInt(normalized.slice(2), 16);
+  }
+
+  if (/^0b[01]+$/i.test(normalized)) {
+    return Number.parseInt(normalized.slice(2), 2);
+  }
+
+  if (/^[01]{8}$/.test(normalized)) {
+    return Number.parseInt(normalized, 2);
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    return Number.parseInt(normalized, 10);
+  }
+
+  return null;
+}
+
+function extractAlarmValue(rawAlarm: string, keys: string[]): string {
+  const keyPattern = keys.join("|");
+  const quotedMatch = rawAlarm.match(
+    new RegExp(`(?:${keyPattern})\\s*[:=]\\s*["']([^"']+)["']`, "i"),
+  );
+
+  if (quotedMatch) {
+    return quotedMatch[1].trim();
+  }
+
+  const plainMatch = rawAlarm.match(new RegExp(`(?:${keyPattern})\\s*[:=]\\s*([^,;\\n\\r]+)`, "i"));
+  return plainMatch?.[1]?.trim() ?? "";
+}
+
+function getAlarmSeverity(categoryCode: number | null): AlarmDecodeResultPayload["severity"] {
+  if (categoryCode === null) {
+    return "unknown";
+  }
+
+  if ([1, 2, 5].includes(categoryCode)) {
+    return "critical";
+  }
+
+  if (categoryCode === 4) {
+    return "major";
+  }
+
+  if ([3, 6, 7].includes(categoryCode)) {
+    return "warning";
+  }
+
+  return "info";
+}
+
+function getAlarmActions(
+  state: AlarmDecodeResultPayload["state"],
+  severity: AlarmDecodeResultPayload["severity"],
+): string[] {
+  if (state === "clear") {
+    return [
+      "Confirm the clear event matches the original alarm ID.",
+      "Review recent process or tool-state changes before releasing the lot.",
+      "Record recovery notes if production was interrupted.",
+    ];
+  }
+
+  if (severity === "critical") {
+    return [
+      "Stop remote or automated action until the tool owner confirms safe state.",
+      "Check interlocks, safety chain, chamber state, and operator notification.",
+      "Escalate to equipment engineering and attach the raw alarm payload.",
+    ];
+  }
+
+  if (severity === "major") {
+    return [
+      "Hold affected lot or recipe step until parameter recovery is verified.",
+      "Compare alarm timestamp with recent recipe, maintenance, and sensor changes.",
+      "Capture ALID, ALTX, module, and current tool state for troubleshooting.",
+    ];
+  }
+
+  return [
+    "Verify whether the alarm repeats or clears after the next tool state transition.",
+    "Check related SVID trends and recent operator actions.",
+    "Add context notes before handover if the condition remains active.",
+  ];
+}
+
+function calculateAlarmDecode(payload: AlarmDecodeRequestPayload): AlarmDecodeResultPayload {
+  const rawAlarm = payload.rawAlarm.trim();
+
+  if (rawAlarm.length === 0) {
+    throw new Error("Paste an alarm message or enter ALCD / ALID values.");
+  }
+
+  const alarmCode =
+    extractAlarmValue(rawAlarm, ["ALCD", "alarmCode", "code"]) ||
+    rawAlarm.match(/\b(?:0x[\da-f]+|0b[01]+|[01]{8})\b/i)?.[0] ||
+    "";
+  const alarmId = extractAlarmValue(rawAlarm, ["ALID", "alarmId", "id"]) || "--";
+  const alarmText = extractAlarmValue(rawAlarm, ["ALTX", "alarmText", "text", "message"]) || rawAlarm;
+  const decodedCode = alarmCode ? decodeAlarmCode(alarmCode) : null;
+  const normalizedCode = decodedCode === null ? "--" : `0x${decodedCode.toString(16).toUpperCase().padStart(2, "0")}`;
+  const state = decodedCode === null ? "unknown" : decodedCode >= 128 ? "set" : "clear";
+  const categoryCode = decodedCode === null ? null : decodedCode & 0x7f;
+  const categoryLabel =
+    categoryCode === null
+      ? "Unable to decode category"
+      : secsAlarmCategories[categoryCode] ?? "Vendor-specific alarm category";
+  const severity = getAlarmSeverity(categoryCode);
+  const protocol = /\bS5F1\b/i.test(rawAlarm) ? "SECS/GEM S5F1" : "SECS/GEM alarm";
+  const stateLabel = state === "set" ? "active" : state === "clear" ? "cleared" : "unknown";
+  const summary = `${protocol} ${stateLabel}: ${categoryLabel}${alarmId !== "--" ? `, ALID ${alarmId}` : ""}.`;
+
+  return {
+    protocol,
+    alarmCode: normalizedCode,
+    alarmId,
+    alarmText,
+    state,
+    categoryCode,
+    categoryLabel,
+    severity,
+    summary,
+    recommendedActions: getAlarmActions(state, severity),
+    parsedFields: [
+      { label: "Protocol", value: protocol },
+      { label: "ALCD", value: normalizedCode },
+      { label: "ALID", value: alarmId },
+      { label: "ALTX", value: alarmText },
+    ],
+  };
+}
+
 scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
   const message = event.data;
 
@@ -369,6 +519,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
         message.payload as TimezoneConversionRequestPayload,
       );
       scope.postMessage({ id: message.id, type: "tool:timezone:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:alarm-decode") {
+      const payload = calculateAlarmDecode(message.payload as AlarmDecodeRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:alarm-decode:result", payload });
       return;
     }
 

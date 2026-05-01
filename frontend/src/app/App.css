@@ -1156,6 +1156,165 @@ a {
   min-height: 96px;
 }
 
+.alarm-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.alarm-input-panel {
+  display: grid;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.alarm-input-panel textarea {
+  width: 100%;
+  min-height: 188px;
+  resize: vertical;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 42%),
+    var(--surface-control);
+  color: var(--text-primary);
+  font: inherit;
+  line-height: 1.5;
+  padding: 14px;
+}
+
+.alarm-input-panel textarea:focus {
+  border-color: var(--brand-border);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
+}
+
+.alarm-summary-panel {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 12px;
+  min-height: 188px;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 12% 8%, var(--accent-soft), transparent 42%),
+    var(--surface-control);
+  padding: 18px;
+}
+
+.alarm-summary-panel strong {
+  color: var(--text-primary);
+  font-size: clamp(32px, 5vw, 54px);
+  line-height: 1;
+}
+
+.alarm-summary-panel p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.alarm-severity {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-active);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 8px 10px;
+  text-transform: uppercase;
+}
+
+.alarm-severity-critical {
+  border-color: rgba(248, 113, 113, 0.52);
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+  box-shadow: 0 0 28px rgba(248, 113, 113, 0.18);
+}
+
+.alarm-severity-major {
+  border-color: rgba(251, 146, 60, 0.48);
+  background: rgba(124, 45, 18, 0.26);
+  color: #fed7aa;
+  box-shadow: 0 0 28px rgba(251, 146, 60, 0.16);
+}
+
+.alarm-severity-warning {
+  border-color: rgba(250, 204, 21, 0.42);
+  background: rgba(113, 63, 18, 0.24);
+  color: #fef3c7;
+}
+
+.alarm-severity-info {
+  border-color: var(--brand-border);
+  background: var(--accent-soft);
+  color: var(--brand-text);
+}
+
+.alarm-result-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.result-tile small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.alarm-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 14px;
+}
+
+.alarm-field-list,
+.alarm-action-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.alarm-field-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 10px;
+}
+
+.alarm-field-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.alarm-field-row span,
+.alarm-action-list li {
+  color: var(--text-muted);
+}
+
+.alarm-field-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.alarm-action-list {
+  padding-left: 18px;
+}
+
+.alarm-action-list li {
+  line-height: 1.5;
+}
+
 .tool-note {
   margin: 0;
   line-height: 1.5;
@@ -1292,6 +1451,8 @@ a {
   }
 
   .command-grid,
+  .alarm-layout,
+  .alarm-detail-grid,
   .tools-grid,
   .diagnostics {
     grid-template-columns: 1fr;
@@ -1335,6 +1496,7 @@ a {
   .duration-form,
   .timezone-form,
   .timezone-add-panel,
+  .alarm-result-grid,
   .duration-result-grid {
     grid-template-columns: 1fr;
   }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type {
+  AlarmDecodeResultPayload,
   DurationResultPayload,
   FactoryClockResultPayload,
   TimezoneConversionResultPayload,
@@ -24,7 +25,13 @@ type StopwatchLap = {
   timestamp: string;
 };
 
-type ActiveTool = "workweek" | "duration" | "timezone" | "factory-clock" | "stopwatch";
+type ActiveTool =
+  | "workweek"
+  | "duration"
+  | "timezone"
+  | "factory-clock"
+  | "stopwatch"
+  | "alarm-decoder";
 
 type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
 
@@ -34,6 +41,7 @@ const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = 
   { id: "timezone", label: "Timezone Converter", category: "Time and shift" },
   { id: "factory-clock", label: "Factory Clock", category: "Clock" },
   { id: "stopwatch", label: "Stopwatch", category: "Manufacturing" },
+  { id: "alarm-decoder", label: "Alarm Decoder", category: "Factory tools" },
 ];
 
 type TimezoneConfig = {
@@ -254,6 +262,9 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     label: "",
   });
   const [breakMinutes, setBreakMinutes] = useState(0);
+  const [alarmRaw, setAlarmRaw] = useState(
+    'S5F1 ALCD=0x85 ALID=3001 ALTX="Chamber pressure interlock"',
+  );
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
   const [shiftLengthHours, setShiftLengthHours] = useState(12);
   const [result, setResult] = useState<WeekShiftResultPayload | null>(null);
@@ -262,14 +273,17 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     null,
   );
   const [clock, setClock] = useState<FactoryClockResultPayload | null>(null);
+  const [alarmResult, setAlarmResult] = useState<AlarmDecodeResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
   const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
   const [timezoneStatus, setTimezoneStatus] = useState<ToolStatus>("idle");
   const [clockStatus, setClockStatus] = useState<ToolStatus>("idle");
+  const [alarmStatus, setAlarmStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [clockError, setClockError] = useState<string | null>(null);
+  const [alarmError, setAlarmError] = useState<string | null>(null);
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
   const [stopwatchBaseMs, setStopwatchBaseMs] = useState(0);
@@ -333,6 +347,12 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       ),
     }),
     [sourceTimezone, sourceTimezoneMeta, timezoneConfig.targetTimezones, timezoneTimestamp],
+  );
+  const alarmPayload = useMemo(
+    () => ({
+      rawAlarm: alarmRaw,
+    }),
+    [alarmRaw],
   );
   const availableTimezoneNames = useMemo(() => {
     const intlWithTimezoneList = Intl as typeof Intl & {
@@ -476,6 +496,36 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [timezonePayload, workerHost]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setAlarmStatus("running");
+    setAlarmError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<AlarmDecodeResultPayload>("compute", "tool:alarm-decode", alarmPayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+          setAlarmResult(payload);
+          setAlarmStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+          setAlarmStatus("error");
+          setAlarmError(reason instanceof Error ? reason.message : "Unable to decode alarm.");
+        });
+    }, 160);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [alarmPayload, workerHost]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -1009,6 +1059,88 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           </div>
         </article>
         ) : null}
+
+        {activeTool === "alarm-decoder" ? (
+        <article className="panel tool-card alarm-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Factory tools</p>
+              <h3>Alarm Decoder</h3>
+            </div>
+            <span className={`status-chip status-${alarmStatus}`}>{alarmStatus}</span>
+          </div>
+
+          <div className="alarm-layout">
+            <label className="alarm-input-panel">
+              <span>Raw alarm message</span>
+              <textarea
+                value={alarmRaw}
+                onChange={(event) => setAlarmRaw(event.target.value)}
+                spellCheck={false}
+              />
+            </label>
+
+            <div className="alarm-summary-panel" aria-live="polite">
+              <span className={`alarm-severity alarm-severity-${alarmResult?.severity ?? "unknown"}`}>
+                {alarmResult?.severity ?? "unknown"}
+              </span>
+              <strong>{alarmResult?.state === "clear" ? "Cleared" : alarmResult?.state === "set" ? "Active" : "Unknown"}</strong>
+              <p>{alarmResult?.summary ?? "Paste an alarm payload to decode."}</p>
+            </div>
+          </div>
+
+          {alarmError ? <div className="error-note">{alarmError}</div> : null}
+
+          <div className="alarm-result-grid">
+            <div className="result-tile emphasis-tile">
+              <span>ALCD</span>
+              <strong>{alarmResult?.alarmCode ?? "--"}</strong>
+            </div>
+            <div className="result-tile">
+              <span>ALID</span>
+              <strong>{alarmResult?.alarmId ?? "--"}</strong>
+            </div>
+            <div className="result-tile">
+              <span>Category</span>
+              <strong>{alarmResult?.categoryCode ?? "--"}</strong>
+              <small>{alarmResult?.categoryLabel ?? "--"}</small>
+            </div>
+            <div className="result-tile">
+              <span>Protocol</span>
+              <strong>{alarmResult?.protocol ?? "--"}</strong>
+            </div>
+          </div>
+
+          <div className="alarm-detail-grid">
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Decoded fields</span>
+                <strong>{alarmResult?.parsedFields.length ?? 0}</strong>
+              </div>
+              <div className="alarm-field-list">
+                {alarmResult?.parsedFields.map((field) => (
+                  <div className="alarm-field-row" key={field.label}>
+                    <span>{field.label}</span>
+                    <strong>{field.value}</strong>
+                  </div>
+                )) ?? null}
+              </div>
+            </section>
+
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Recommended actions</span>
+                <strong>{alarmResult?.recommendedActions.length ?? 0}</strong>
+              </div>
+              <ol className="alarm-action-list">
+                {alarmResult?.recommendedActions.map((action) => (
+                  <li key={action}>{action}</li>
+                )) ?? null}
+              </ol>
+            </section>
+          </div>
+        </article>
+        ) : null}
         </div>
 
         <aside className="panel tool-library">
@@ -1033,7 +1165,6 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           <ul>
             <li>Unit converter</li>
             <li>Yield / scrap / UPH calculator</li>
-            <li>Alarm decoder</li>
             <li>CSV and log quick parser</li>
           </ul>
         </aside>

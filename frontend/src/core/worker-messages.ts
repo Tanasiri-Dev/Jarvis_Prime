@@ -93,6 +93,29 @@ export interface TimezoneConversionResultPayload {
   targets: TimezoneConversionItem[];
 }
 
+export interface AlarmDecodeRequestPayload {
+  rawAlarm: string;
+}
+
+export interface AlarmDecodedField {
+  label: string;
+  value: string;
+}
+
+export interface AlarmDecodeResultPayload {
+  protocol: string;
+  alarmCode: string;
+  alarmId: string;
+  alarmText: string;
+  state: "set" | "clear" | "unknown";
+  categoryCode: number | null;
+  categoryLabel: string;
+  severity: "critical" | "major" | "warning" | "info" | "unknown";
+  summary: string;
+  recommendedActions: string[];
+  parsedFields: AlarmDecodedField[];
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;
