@@ -68,12 +68,21 @@ export interface DurationResultPayload {
 export interface TimezoneConversionRequestPayload {
   localTimestamp: string;
   sourceTimezone: string;
-  targetTimezones: string[];
+  sourceLabel: string;
+  sourceFlagCode: string;
+  targetTimezones: TimezoneTargetConfig[];
+}
+
+export interface TimezoneTargetConfig {
+  timezone: string;
+  label: string;
+  flagCode: string;
 }
 
 export interface TimezoneConversionItem {
   timezone: string;
   cityLabel: string;
+  flagCode: string;
   dateLabel: string;
   timeLabel: string;
   weekdayLabel: string;
@@ -83,6 +92,7 @@ export interface TimezoneConversionItem {
 
 export interface TimezoneConversionResultPayload {
   source: TimezoneConversionItem;
+  utc: TimezoneConversionItem;
   targets: TimezoneConversionItem[];
 }
 

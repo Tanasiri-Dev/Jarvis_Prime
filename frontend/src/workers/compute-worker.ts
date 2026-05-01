@@ -6,6 +6,7 @@ import type {
   TimezoneConversionItem,
   TimezoneConversionRequestPayload,
   TimezoneConversionResultPayload,
+  TimezoneTargetConfig,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
   WorkerEnvelope,
@@ -130,6 +131,7 @@ const getDayRelation = (
 const timezoneCityLabels: Record<string, string> = {
   "America/New_York": "Durham NC",
   "Asia/Shanghai": "China",
+  "Europe/Rome": "Italy",
 };
 
 const getCityLabel = (timezone: string): string =>
@@ -142,14 +144,16 @@ const getCityLabel = (timezone: string): string =>
 
 function formatTimezoneItem(
   date: Date,
-  timezone: string,
+  target: TimezoneTargetConfig,
   sourceTimezone: string,
 ): TimezoneConversionItem {
+  const { flagCode, label, timezone } = target;
   const parts = getTimezoneParts(date, timezone);
 
   return {
     timezone,
-    cityLabel: getCityLabel(timezone),
+    cityLabel: label || getCityLabel(timezone),
+    flagCode,
     dateLabel: `${parts.year}-${parts.month}-${parts.day}`,
     timeLabel: `${parts.hour}:${parts.minute}:${parts.second}`,
     weekdayLabel: parts.weekday,
@@ -314,12 +318,25 @@ function calculateTimezoneConversion(
     throw new Error("Invalid source date/time input.");
   }
 
-  const source = formatTimezoneItem(timestamp, payload.sourceTimezone, payload.sourceTimezone);
-  const targets = payload.targetTimezones.map((timezone) =>
-    formatTimezoneItem(timestamp, timezone, payload.sourceTimezone),
+  const source = formatTimezoneItem(
+    timestamp,
+    {
+      timezone: payload.sourceTimezone,
+      label: payload.sourceLabel,
+      flagCode: payload.sourceFlagCode,
+    },
+    payload.sourceTimezone,
+  );
+  const utc = formatTimezoneItem(
+    timestamp,
+    { timezone: "UTC", label: "UTC", flagCode: "UTC" },
+    payload.sourceTimezone,
+  );
+  const targets = payload.targetTimezones.map((target) =>
+    formatTimezoneItem(timestamp, target, payload.sourceTimezone),
   );
 
-  return { source, targets };
+  return { source, utc, targets };
 }
 
 scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {

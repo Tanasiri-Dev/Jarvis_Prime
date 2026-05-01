@@ -64,7 +64,10 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Uses `tool:duration` in `compute-worker`.
 - Timezone Converter
   - Modern timezone card UI.
-  - Defaults include UTC, Bangkok, Los Angeles, Durham NC (`America/New_York`), China (`Asia/Shanghai`), Tokyo.
+  - Defaults are loaded from `frontend/public/config/timezones.json`.
+  - UTC is displayed as a top inline reference instead of a city card.
+  - Default cards include Bangkok, Los Angeles, Durham NC (`America/New_York`), China (`Asia/Shanghai`), Italy (`Europe/Rome`), Tokyo.
+  - User-added timezone cards are persisted in browser `localStorage` under `jarvis-prime.timezones`.
   - Uses `tool:timezone` in `compute-worker`.
 - Factory Clock
   - Live local clock, UTC, current shift, next shift, shift-change remaining time.

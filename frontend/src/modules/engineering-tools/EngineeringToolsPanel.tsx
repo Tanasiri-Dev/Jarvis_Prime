@@ -4,6 +4,7 @@ import type {
   DurationResultPayload,
   FactoryClockResultPayload,
   TimezoneConversionResultPayload,
+  TimezoneTargetConfig,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
 } from "../../core/worker-messages";
@@ -35,24 +36,123 @@ const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = 
   { id: "stopwatch", label: "Stopwatch", category: "Manufacturing" },
 ];
 
-const timezoneOptions = [
-  "Asia/Bangkok",
-  "UTC",
-  "America/Los_Angeles",
-  "America/New_York",
-  "Asia/Shanghai",
-  "Asia/Tokyo",
-  "Asia/Singapore",
-];
+type TimezoneConfig = {
+  sourceTimezones: TimezoneTargetConfig[];
+  targetTimezones: TimezoneTargetConfig[];
+};
 
-const targetTimezones = [
-  "UTC",
-  "Asia/Bangkok",
-  "America/Los_Angeles",
-  "America/New_York",
-  "Asia/Shanghai",
-  "Asia/Tokyo",
-];
+type RawTimezoneConfigItem = {
+  timezone?: unknown;
+  label?: unknown;
+  flag?: unknown;
+  flagCode?: unknown;
+};
+
+type RawTimezoneConfig = {
+  sourceTimezones?: unknown;
+  targetTimezones?: unknown;
+};
+
+const fallbackTimezoneConfig: TimezoneConfig = {
+  sourceTimezones: [
+    { timezone: "Asia/Bangkok", label: "Thailand", flagCode: "TH" },
+    { timezone: "UTC", label: "UTC", flagCode: "UTC" },
+    { timezone: "America/Los_Angeles", label: "Los Angeles", flagCode: "US" },
+    { timezone: "America/New_York", label: "Durham NC", flagCode: "US" },
+    { timezone: "Asia/Shanghai", label: "China", flagCode: "CN" },
+    { timezone: "Europe/Rome", label: "Italy", flagCode: "IT" },
+    { timezone: "Asia/Tokyo", label: "Tokyo", flagCode: "JP" },
+    { timezone: "Asia/Singapore", label: "Singapore", flagCode: "SG" },
+  ],
+  targetTimezones: [
+    { timezone: "Asia/Bangkok", label: "Thailand", flagCode: "TH" },
+    { timezone: "America/Los_Angeles", label: "Los Angeles", flagCode: "US" },
+    { timezone: "America/New_York", label: "Durham NC", flagCode: "US" },
+    { timezone: "Asia/Shanghai", label: "China", flagCode: "CN" },
+    { timezone: "Europe/Rome", label: "Italy", flagCode: "IT" },
+    { timezone: "Asia/Tokyo", label: "Tokyo", flagCode: "JP" },
+  ],
+};
+
+const timezoneStorageKey = "jarvis-prime.timezones";
+
+function normalizeTimezoneItem(item: RawTimezoneConfigItem): TimezoneTargetConfig | null {
+  if (typeof item.timezone !== "string" || item.timezone.trim().length === 0) {
+    return null;
+  }
+
+  const timezone = item.timezone.trim();
+  const fallbackLabel = timezone.split("/").at(-1)?.replaceAll("_", " ") ?? timezone;
+  const label = typeof item.label === "string" && item.label.trim().length > 0
+    ? item.label.trim()
+    : fallbackLabel;
+  const rawFlag = typeof item.flagCode === "string" ? item.flagCode : item.flag;
+  const flagCode = typeof rawFlag === "string" && rawFlag.trim().length > 0
+    ? rawFlag.trim().toUpperCase()
+    : "UTC";
+
+  return { timezone, label, flagCode };
+}
+
+function normalizeTimezoneItems(items: unknown): TimezoneTargetConfig[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item) => normalizeTimezoneItem(item as RawTimezoneConfigItem))
+    .filter((item): item is TimezoneTargetConfig => item !== null);
+}
+
+function mergeTimezoneItems(
+  primary: TimezoneTargetConfig[],
+  secondary: TimezoneTargetConfig[],
+): TimezoneTargetConfig[] {
+  const itemsByTimezone = new Map<string, TimezoneTargetConfig>();
+
+  [...primary, ...secondary].forEach((item) => {
+    itemsByTimezone.set(item.timezone, item);
+  });
+
+  return Array.from(itemsByTimezone.values());
+}
+
+function normalizeTimezoneConfig(raw: RawTimezoneConfig): TimezoneConfig {
+  const sourceTimezones = normalizeTimezoneItems(raw.sourceTimezones);
+  const targetTimezones = normalizeTimezoneItems(raw.targetTimezones);
+
+  return {
+    sourceTimezones: sourceTimezones.length > 0
+      ? sourceTimezones
+      : fallbackTimezoneConfig.sourceTimezones,
+    targetTimezones: targetTimezones.length > 0
+      ? targetTimezones
+      : fallbackTimezoneConfig.targetTimezones,
+  };
+}
+
+function readStoredTimezoneItems(): TimezoneTargetConfig[] {
+  try {
+    const storedValue = window.localStorage.getItem(timezoneStorageKey);
+    return normalizeTimezoneItems(storedValue ? JSON.parse(storedValue) : []);
+  } catch {
+    return [];
+  }
+}
+
+function countryFlag(flagCode: string): string {
+  if (flagCode === "UTC") {
+    return "UTC";
+  }
+
+  if (!/^[A-Z]{2}$/.test(flagCode)) {
+    return flagCode;
+  }
+
+  return String.fromCodePoint(
+    ...[...flagCode].map((letter) => 127397 + letter.charCodeAt(0)),
+  );
+}
 
 class StopwatchActionButtonModel {
   readonly label: string;
@@ -167,7 +267,14 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     toDatetimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)),
   );
   const [timezoneTimestamp, setTimezoneTimestamp] = useState(() => toDatetimeLocalValue(new Date()));
+  const [timezoneConfig, setTimezoneConfig] = useState<TimezoneConfig>(fallbackTimezoneConfig);
   const [sourceTimezone, setSourceTimezone] = useState("Asia/Bangkok");
+  const [isAddingTimezone, setIsAddingTimezone] = useState(false);
+  const [newTimezone, setNewTimezone] = useState<TimezoneTargetConfig>({
+    timezone: "",
+    label: "",
+    flagCode: "",
+  });
   const [breakMinutes, setBreakMinutes] = useState(0);
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
   const [shiftLengthHours, setShiftLengthHours] = useState(12);
@@ -232,14 +339,62 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     }),
     [breakMinutes, durationEnd, durationStart],
   );
+  const sourceTimezoneMeta = useMemo(
+    () =>
+      timezoneConfig.sourceTimezones.find((timezone) => timezone.timezone === sourceTimezone) ??
+      fallbackTimezoneConfig.sourceTimezones[0],
+    [sourceTimezone, timezoneConfig.sourceTimezones],
+  );
   const timezonePayload = useMemo(
     () => ({
       localTimestamp: timezoneTimestamp,
       sourceTimezone,
-      targetTimezones: targetTimezones.filter((timezone) => timezone !== sourceTimezone),
+      sourceLabel: sourceTimezoneMeta.label,
+      sourceFlagCode: sourceTimezoneMeta.flagCode,
+      targetTimezones: timezoneConfig.targetTimezones.filter(
+        (timezone) => timezone.timezone !== sourceTimezone && timezone.timezone !== "UTC",
+      ),
     }),
-    [sourceTimezone, timezoneTimestamp],
+    [sourceTimezone, sourceTimezoneMeta, timezoneConfig.targetTimezones, timezoneTimestamp],
   );
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    void fetch("/config/timezones.json")
+      .then((response) => (response.ok ? response.json() : fallbackTimezoneConfig))
+      .then((rawConfig: RawTimezoneConfig) => {
+        if (!isCurrent) {
+          return;
+        }
+
+        const config = normalizeTimezoneConfig(rawConfig);
+        const storedTargets = readStoredTimezoneItems();
+        const targetTimezones = mergeTimezoneItems(config.targetTimezones, storedTargets);
+        const sourceTimezones = mergeTimezoneItems(config.sourceTimezones, storedTargets);
+
+        setTimezoneConfig({ sourceTimezones, targetTimezones });
+
+        if (!sourceTimezones.some((timezone) => timezone.timezone === sourceTimezone)) {
+          setSourceTimezone(sourceTimezones[0]?.timezone ?? "Asia/Bangkok");
+        }
+      })
+      .catch(() => {
+        if (!isCurrent) {
+          return;
+        }
+
+        const storedTargets = readStoredTimezoneItems();
+        setTimezoneConfig({
+          sourceTimezones: mergeTimezoneItems(fallbackTimezoneConfig.sourceTimezones, storedTargets),
+          targetTimezones: mergeTimezoneItems(fallbackTimezoneConfig.targetTimezones, storedTargets),
+        });
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isCurrent = true;
@@ -429,6 +584,46 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     });
   };
 
+  const addTimezoneCard = () => {
+    const timezone = newTimezone.timezone.trim();
+
+    if (timezone.length === 0) {
+      return;
+    }
+
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
+    } catch {
+      setTimezoneError("Please enter a valid IANA timezone, for example Europe/Rome.");
+      return;
+    }
+
+    const label =
+      newTimezone.label.trim() ||
+      timezone.split("/").at(-1)?.replaceAll("_", " ") ||
+      timezone;
+    const flagCode = newTimezone.flagCode.trim().toUpperCase() || "UTC";
+    const item: TimezoneTargetConfig = { timezone, label, flagCode };
+
+    setTimezoneConfig((current) => {
+      const targetTimezones = mergeTimezoneItems(current.targetTimezones, [item]);
+      const sourceTimezones = mergeTimezoneItems(current.sourceTimezones, [item]);
+      const defaultTimezones = new Set(
+        fallbackTimezoneConfig.targetTimezones.map((timezoneItem) => timezoneItem.timezone),
+      );
+      const storedTargets = targetTimezones.filter(
+        (timezoneItem) => !defaultTimezones.has(timezoneItem.timezone),
+      );
+
+      window.localStorage.setItem(timezoneStorageKey, JSON.stringify(storedTargets));
+
+      return { sourceTimezones, targetTimezones };
+    });
+    setNewTimezone({ timezone: "", label: "", flagCode: "" });
+    setTimezoneError(null);
+    setIsAddingTimezone(false);
+  };
+
   return (
     <section id="engineering-tools" className="tools-layout" aria-label="Engineering Tools">
       <article className="panel tools-intro">
@@ -588,6 +783,80 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
             <span className={`status-chip status-${timezoneStatus}`}>{timezoneStatus}</span>
           </div>
 
+          <div className="timezone-topline" aria-live="polite">
+            <div className="utc-inline">
+              <span className="flag-badge">{countryFlag(timezoneResult?.utc.flagCode ?? "UTC")}</span>
+              <div>
+                <span>UTC</span>
+                <strong>{timezoneResult?.utc.timeLabel ?? "--:--:--"}</strong>
+                <small>
+                  {timezoneResult?.utc.weekdayLabel ?? "--"} ·{" "}
+                  {timezoneResult?.utc.dateLabel ?? "----"} ·{" "}
+                  {timezoneResult?.utc.offsetLabel ?? "GMT"}
+                </small>
+              </div>
+            </div>
+
+            <button
+              className="add-city-button"
+              type="button"
+              onClick={() => setIsAddingTimezone((current) => !current)}
+            >
+              {isAddingTimezone ? "Close" : "Add city"}
+            </button>
+          </div>
+
+          {isAddingTimezone ? (
+            <div className="timezone-add-panel">
+              <label>
+                <span>Timezone</span>
+                <input
+                  placeholder="Europe/Rome"
+                  type="text"
+                  value={newTimezone.timezone}
+                  onChange={(event) =>
+                    setNewTimezone((current) => ({
+                      ...current,
+                      timezone: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                <span>City label</span>
+                <input
+                  placeholder="Italy"
+                  type="text"
+                  value={newTimezone.label}
+                  onChange={(event) =>
+                    setNewTimezone((current) => ({
+                      ...current,
+                      label: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                <span>Flag code</span>
+                <input
+                  maxLength={3}
+                  placeholder="IT"
+                  type="text"
+                  value={newTimezone.flagCode}
+                  onChange={(event) =>
+                    setNewTimezone((current) => ({
+                      ...current,
+                      flagCode: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <button className="add-city-submit" type="button" onClick={addTimezoneCard}>
+                Save city
+              </button>
+            </div>
+          ) : null}
+
           <div className="tool-form timezone-form">
             <label>
               <span>Source time</span>
@@ -604,9 +873,9 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                 value={sourceTimezone}
                 onChange={(event) => setSourceTimezone(event.target.value)}
               >
-                {timezoneOptions.map((timezone) => (
-                  <option key={timezone} value={timezone}>
-                    {timezone}
+                {timezoneConfig.sourceTimezones.map((timezone) => (
+                  <option key={timezone.timezone} value={timezone.timezone}>
+                    {timezone.label} · {timezone.timezone}
                   </option>
                 ))}
               </select>
@@ -616,24 +885,33 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           {timezoneError ? <div className="error-note">{timezoneError}</div> : null}
 
           <div className="timezone-source-card" aria-live="polite">
-            <span>Source</span>
+            <span>
+              <span className="flag-badge">{countryFlag(timezoneResult?.source.flagCode ?? "TH")}</span>
+              Source
+            </span>
             <strong>{timezoneResult?.source.timeLabel ?? "--:--:--"}</strong>
             <small>
               {timezoneResult?.source.weekdayLabel ?? "--"} ·{" "}
               {timezoneResult?.source.dateLabel ?? "----"} ·{" "}
               {timezoneResult?.source.offsetLabel ?? "--"}
             </small>
-            <p>{timezoneResult?.source.timezone ?? sourceTimezone}</p>
+            <p>{timezoneResult?.source.cityLabel ?? sourceTimezoneMeta.label}</p>
+            <small>{timezoneResult?.source.timezone ?? sourceTimezone}</small>
           </div>
 
           <div className="timezone-card-grid">
             {timezoneResult?.targets.map((target) => (
               <article className={`timezone-card day-${target.dayRelation}`} key={target.timezone}>
-                <div>
-                  <span>{target.cityLabel}</span>
-                  <small>{target.timezone}</small>
+                <div className="timezone-card-heading">
+                  <span className="flag-badge">{countryFlag(target.flagCode)}</span>
+                  <div>
+                    <span>{target.cityLabel}</span>
+                    <small>{target.timezone}</small>
+                  </div>
                 </div>
-                <strong>{target.timeLabel}</strong>
+                <div>
+                  <strong>{target.timeLabel}</strong>
+                </div>
                 <p>
                   {target.weekdayLabel} · {target.dateLabel} · {target.offsetLabel}
                 </p>
