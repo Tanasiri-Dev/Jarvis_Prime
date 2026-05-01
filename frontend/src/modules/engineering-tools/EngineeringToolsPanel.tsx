@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AlarmDecodeResultPayload,
@@ -27,6 +27,16 @@ type StopwatchLap = {
   timestamp: string;
 };
 
+type OnlineAlarm = {
+  id: number;
+  hour: string;
+  minute: string;
+  label: string;
+  sound: string;
+  enabled: boolean;
+  lastTriggeredKey: string | null;
+};
+
 type ActiveTool =
   | "workweek"
   | "duration"
@@ -34,18 +44,37 @@ type ActiveTool =
   | "factory-clock"
   | "stopwatch"
   | "alarm-decoder"
-  | "unit-converter";
+  | "unit-converter"
+  | "online-alarm";
 
 type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
 
 const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = [
-  { id: "workweek", label: "WorkWeek", category: "Time and shift" },
-  { id: "duration", label: "Duration Calculator", category: "Time and shift" },
-  { id: "timezone", label: "Timezone Converter", category: "Time and shift" },
-  { id: "factory-clock", label: "Factory Clock", category: "Clock" },
-  { id: "stopwatch", label: "Stopwatch", category: "Manufacturing" },
-  { id: "alarm-decoder", label: "Alarm Decoder", category: "Factory tools" },
-  { id: "unit-converter", label: "Unit Converter", category: "Engineering math" },
+  { id: "workweek", label: "WorkWeek", category: "Week" },
+  { id: "duration", label: "Duration Calculator", category: "Day" },
+  { id: "factory-clock", label: "Factory Clock", category: "Time" },
+  { id: "timezone", label: "Timezone Converter", category: "Time" },
+  { id: "stopwatch", label: "Stopwatch", category: "Time" },
+  { id: "online-alarm", label: "Online Alarm", category: "Time" },
+  { id: "unit-converter", label: "Unit Converter", category: "Unit Convert" },
+  { id: "alarm-decoder", label: "Alarm Decoder", category: "Decoder" },
+];
+
+const toolGroups: Array<{ label: string; tools: typeof toolOptions }> = [
+  { label: "Week", tools: toolOptions.filter((tool) => tool.category === "Week") },
+  { label: "Day", tools: toolOptions.filter((tool) => tool.category === "Day") },
+  { label: "Time", tools: toolOptions.filter((tool) => tool.category === "Time") },
+  {
+    label: "Unit Convert",
+    tools: toolOptions.filter((tool) => tool.category === "Unit Convert"),
+  },
+  { label: "Decoder", tools: toolOptions.filter((tool) => tool.category === "Decoder") },
+];
+
+const alarmSoundOptions = [
+  { id: "clean", label: "Clean pulse", frequency: 880 },
+  { id: "bright", label: "Bright chime", frequency: 1174 },
+  { id: "deep", label: "Deep alert", frequency: 440 },
 ];
 
 const unitCatalog: Record<
@@ -245,6 +274,8 @@ function RoundActionButton({ disabled = false, model, onClick }: RoundActionButt
 }
 
 const pad = (value: number): string => String(value).padStart(2, "0");
+const hourOptions = Array.from({ length: 24 }, (_, index) => pad(index));
+const minuteOptions = Array.from({ length: 60 }, (_, index) => pad(index));
 
 function toDatetimeLocalValue(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
@@ -259,6 +290,43 @@ function formatDuration(milliseconds: number): string {
   const centiseconds = Math.floor((totalMilliseconds % 1000) / 10);
 
   return `${pad(minutes)}:${pad(seconds)}.${pad(centiseconds)}`;
+}
+
+function formatClockTime(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function formatClockDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+}
+
+function playAlarmTone(soundId: string): void {
+  const sound = alarmSoundOptions.find((option) => option.id === soundId) ?? alarmSoundOptions[0];
+  const AudioContextClass = window.AudioContext;
+  const audioContext = new AudioContextClass();
+  const gain = audioContext.createGain();
+
+  gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.22, audioContext.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 1.2);
+  gain.connect(audioContext.destination);
+
+  [0, 0.32, 0.64].forEach((delay) => {
+    const oscillator = audioContext.createOscillator();
+
+    oscillator.frequency.setValueAtTime(sound.frequency, audioContext.currentTime + delay);
+    oscillator.type = "sine";
+    oscillator.connect(gain);
+    oscillator.start(audioContext.currentTime + delay);
+    oscillator.stop(audioContext.currentTime + delay + 0.18);
+  });
+
+  window.setTimeout(() => void audioContext.close(), 1400);
 }
 
 function escapeExcelCell(value: string): string {
@@ -336,6 +404,31 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [unitInputValue, setUnitInputValue] = useState(25.4);
   const [unitFrom, setUnitFrom] = useState("mm");
   const [unitTo, setUnitTo] = useState("in");
+  const [alarmClockNow, setAlarmClockNow] = useState(() => new Date());
+  const [alarmHour, setAlarmHour] = useState("07");
+  const [alarmMinute, setAlarmMinute] = useState("00");
+  const [alarmLabel, setAlarmLabel] = useState("Factory reminder");
+  const [alarmSound, setAlarmSound] = useState(alarmSoundOptions[0].id);
+  const [onlineAlarms, setOnlineAlarms] = useState<OnlineAlarm[]>([
+    {
+      id: 1,
+      hour: "05",
+      minute: "00",
+      label: "Shift preparation",
+      sound: "clean",
+      enabled: true,
+      lastTriggeredKey: null,
+    },
+    {
+      id: 2,
+      hour: "07",
+      minute: "30",
+      label: "Morning handover",
+      sound: "bright",
+      enabled: true,
+      lastTriggeredKey: null,
+    },
+  ]);
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
   const [shiftLengthHours, setShiftLengthHours] = useState(12);
   const [result, setResult] = useState<WeekShiftResultPayload | null>(null);
@@ -363,6 +456,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [stopwatchBaseMs, setStopwatchBaseMs] = useState(0);
   const [stopwatchNowMs, setStopwatchNowMs] = useState(Date.now());
   const [stopwatchHistory, setStopwatchHistory] = useState<StopwatchLap[]>([]);
+  const alarmIdRef = useRef(3);
 
   const elapsedMs =
     stopwatchBaseMs +
@@ -438,6 +532,26 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     }),
     [unitCategory, unitFrom, unitInputValue, unitTo],
   );
+  const nextAlarm = useMemo(() => {
+    const enabledAlarms = onlineAlarms.filter((alarm) => alarm.enabled);
+
+    if (enabledAlarms.length === 0) {
+      return null;
+    }
+
+    return enabledAlarms
+      .map((alarm) => {
+        const nextRun = new Date(alarmClockNow);
+        nextRun.setHours(Number(alarm.hour), Number(alarm.minute), 0, 0);
+
+        if (nextRun.getTime() <= alarmClockNow.getTime()) {
+          nextRun.setDate(nextRun.getDate() + 1);
+        }
+
+        return { alarm, nextRun };
+      })
+      .sort((left, right) => left.nextRun.getTime() - right.nextRun.getTime())[0];
+  }, [alarmClockNow, onlineAlarms]);
   const availableTimezoneNames = useMemo(() => {
     const intlWithTimezoneList = Intl as typeof Intl & {
       supportedValuesOf?: (key: "timeZone") => string[];
@@ -699,6 +813,33 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     return () => window.clearInterval(intervalId);
   }, [isStopwatchRunning]);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setAlarmClockNow(new Date()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    const triggerKey = `${alarmClockNow.getFullYear()}-${pad(alarmClockNow.getMonth() + 1)}-${pad(
+      alarmClockNow.getDate(),
+    )}-${pad(alarmClockNow.getHours())}:${pad(alarmClockNow.getMinutes())}`;
+
+    onlineAlarms.forEach((alarm) => {
+      if (
+        alarm.enabled &&
+        alarm.hour === pad(alarmClockNow.getHours()) &&
+        alarm.minute === pad(alarmClockNow.getMinutes()) &&
+        alarm.lastTriggeredKey !== triggerKey
+      ) {
+        playAlarmTone(alarm.sound);
+        setOnlineAlarms((current) =>
+          current.map((item) =>
+            item.id === alarm.id ? { ...item, lastTriggeredKey: triggerKey } : item,
+          ),
+        );
+      }
+    });
+  }, [alarmClockNow, onlineAlarms]);
+
   const startStopwatch = () => {
     if (isStopwatchRunning) {
       return;
@@ -788,6 +929,36 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     setNewTimezone({ timezone: "", label: "" });
     setTimezoneError(null);
     setIsAddingTimezone(false);
+  };
+
+  const addOnlineAlarm = () => {
+    const label = alarmLabel.trim() || "Jarvis alarm";
+
+    setOnlineAlarms((current) => [
+      ...current,
+      {
+        id: alarmIdRef.current,
+        hour: alarmHour,
+        minute: alarmMinute,
+        label,
+        sound: alarmSound,
+        enabled: true,
+        lastTriggeredKey: null,
+      },
+    ]);
+    alarmIdRef.current += 1;
+  };
+
+  const toggleOnlineAlarm = (alarmId: number) => {
+    setOnlineAlarms((current) =>
+      current.map((alarm) =>
+        alarm.id === alarmId ? { ...alarm, enabled: !alarm.enabled, lastTriggeredKey: null } : alarm,
+      ),
+    );
+  };
+
+  const removeOnlineAlarm = (alarmId: number) => {
+    setOnlineAlarms((current) => current.filter((alarm) => alarm.id !== alarmId));
   };
 
   return (
@@ -1186,6 +1357,127 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
         </article>
         ) : null}
 
+        {activeTool === "online-alarm" ? (
+        <article className="panel tool-card online-alarm-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Time</p>
+              <h3>Online Alarm</h3>
+            </div>
+            <span className="status-chip status-ready">online</span>
+          </div>
+
+          <div className="alarm-clock-face" aria-live="polite">
+            <span>{formatClockDate(alarmClockNow)}</span>
+            <strong>{formatClockTime(alarmClockNow)}</strong>
+            <small>
+              Next alarm:{" "}
+              {nextAlarm
+                ? `${nextAlarm.alarm.hour}:${nextAlarm.alarm.minute} · ${nextAlarm.alarm.label}`
+                : "No active alarms"}
+            </small>
+          </div>
+
+          <div className="alarm-builder">
+            <label>
+              <span>Hour</span>
+              <select value={alarmHour} onChange={(event) => setAlarmHour(event.target.value)}>
+                {hourOptions.map((hour) => (
+                  <option key={hour} value={hour}>
+                    {hour}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Minute</span>
+              <select value={alarmMinute} onChange={(event) => setAlarmMinute(event.target.value)}>
+                {minuteOptions.map((minute) => (
+                  <option key={minute} value={minute}>
+                    {minute}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Sound</span>
+              <select value={alarmSound} onChange={(event) => setAlarmSound(event.target.value)}>
+                {alarmSoundOptions.map((sound) => (
+                  <option key={sound.id} value={sound.id}>
+                    {sound.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Alarm name</span>
+              <input
+                type="text"
+                value={alarmLabel}
+                onChange={(event) => setAlarmLabel(event.target.value)}
+              />
+            </label>
+
+            <button className="add-city-submit" type="button" onClick={addOnlineAlarm}>
+              Add alarm
+            </button>
+          </div>
+
+          <div className="alarm-quick-grid">
+            {["05:00", "05:30", "06:00", "06:30", "07:00", "07:30", "08:00", "08:30"].map(
+              (time) => (
+                <button
+                  key={time}
+                  type="button"
+                  onClick={() => {
+                    const [hour, minute] = time.split(":");
+                    setAlarmHour(hour);
+                    setAlarmMinute(minute);
+                  }}
+                >
+                  {time}
+                </button>
+              ),
+            )}
+          </div>
+
+          <div className="alarm-sound-row">
+            <button
+              className="add-city-button"
+              type="button"
+              onClick={() => playAlarmTone(alarmSound)}
+            >
+              Test sound
+            </button>
+          </div>
+
+          <div className="online-alarm-list">
+            {onlineAlarms.map((alarm) => (
+              <article className="online-alarm-card" key={alarm.id}>
+                <div>
+                  <span>{alarm.enabled ? "Enabled" : "Paused"}</span>
+                  <strong>
+                    {alarm.hour}:{alarm.minute}
+                  </strong>
+                  <small>{alarm.label}</small>
+                </div>
+                <div className="online-alarm-actions">
+                  <button type="button" onClick={() => toggleOnlineAlarm(alarm.id)}>
+                    {alarm.enabled ? "Pause" : "Enable"}
+                  </button>
+                  <button type="button" onClick={() => removeOnlineAlarm(alarm.id)}>
+                    Remove
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </article>
+        ) : null}
+
         {activeTool === "alarm-decoder" ? (
         <article className="panel tool-card alarm-tool">
           <div className="tool-card-header">
@@ -1375,18 +1667,22 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
         <aside className="panel tool-library">
           <p className="eyebrow">Tool Library</p>
           <div className="tool-picker" role="listbox" aria-label="Engineering tool picker">
-            {toolOptions.map((tool) => (
-              <button
-                key={tool.id}
-                aria-selected={activeTool === tool.id}
-                className="tool-picker-item"
-                role="option"
-                type="button"
-                onClick={() => setActiveTool(tool.id)}
-              >
-                <span>{tool.category}</span>
-                <strong>{tool.label}</strong>
-              </button>
+            {toolGroups.map((group) => (
+              <div className="tool-picker-group" key={group.label}>
+                <span>{group.label}</span>
+                {group.tools.map((tool) => (
+                  <button
+                    key={tool.id}
+                    aria-selected={activeTool === tool.id}
+                    className="tool-picker-item"
+                    role="option"
+                    type="button"
+                    onClick={() => setActiveTool(tool.id)}
+                  >
+                    <strong>{tool.label}</strong>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
 

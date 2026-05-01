@@ -75,6 +75,9 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
 - Factory Clock
   - Live local clock, UTC, current shift, next shift, shift-change remaining time.
   - Uses `tool:factory-clock` in `compute-worker`.
+- Online Alarm
+  - Multiple browser-based alarms with hour/minute selectors, quick time presets, labels, pause/remove actions, and test sound.
+  - Uses lightweight frontend timer state; browser audio may require a user interaction before playback.
 - Process Stopwatch
   - Start/Stop/Lap/Reset plus Excel export.
   - Premium circular action buttons with color variants and shimmer effect.
@@ -94,6 +97,7 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
 - Default dark theme follows the `CODEX.md` crypto-native glassmorphism direction: dark glass panels, luminous borders, sticky glass top bar, and stronger glow on hover.
 - Theme styling is tokenized in `frontend/src/app/App.css`.
 - Tool Library is on the right and selects one active tool at a time.
+- Tool Library groups are ordered: Week, Day, Time, Unit Convert, Decoder.
 - Avoid showing all tools at once. Add new tools as selectable tool cards.
 - Preserve responsive layouts.
 
