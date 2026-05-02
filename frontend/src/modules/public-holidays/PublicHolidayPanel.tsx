@@ -24,11 +24,11 @@ type StatusChipProps = {
 
 const holidayCities: CityPreset[] = [
   {
-    id: "bangkok-th",
-    cityLabel: "Bangkok",
-    countryName: "Thailand",
-    countryCode: "TH",
-    note: "Thailand factory calendar",
+    id: "united-states",
+    cityLabel: "United States",
+    countryName: "United States",
+    countryCode: "US",
+    note: "United States planner calendar",
   },
   {
     id: "durham-us-nc",
@@ -39,12 +39,11 @@ const holidayCities: CityPreset[] = [
     note: "North Carolina planner view",
   },
   {
-    id: "los-angeles-us-ca",
-    cityLabel: "Los Angeles",
-    countryName: "United States",
-    countryCode: "US",
-    subdivisionCode: "US-CA",
-    note: "California logistics view",
+    id: "bangkok-th",
+    cityLabel: "Bangkok",
+    countryName: "Thailand",
+    countryCode: "TH",
+    note: "Thailand factory calendar",
   },
   {
     id: "shanghai-cn",
@@ -66,6 +65,14 @@ const holidayCities: CityPreset[] = [
     countryName: "Japan",
     countryCode: "JP",
     note: "Japan support calendar",
+  },
+  {
+    id: "los-angeles-us-ca",
+    cityLabel: "Los Angeles",
+    countryName: "United States",
+    countryCode: "US",
+    subdivisionCode: "US-CA",
+    note: "California logistics view",
   },
 ];
 
@@ -153,6 +160,103 @@ function normalizeHoliday(rawHoliday: Partial<PublicHolidayApiItem>): PublicHoli
   };
 }
 
+function HolidayMonthFrame({
+  count,
+  isCurrentMonth,
+  workerHost,
+}: {
+  count: number;
+  isCurrentMonth: boolean;
+  workerHost: WorkerHost;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const idRef = useRef(`holiday-frame-${crypto.randomUUID()}`);
+  const [isCanvasReady, setIsCanvasReady] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const wrapper = wrapperRef.current;
+
+    if (!canvas || !wrapper || !("transferControlToOffscreen" in canvas)) {
+      return;
+    }
+
+    const offscreen = canvas.transferControlToOffscreen();
+    const rect = wrapper.getBoundingClientRect();
+    let isCurrent = true;
+
+    void workerHost
+      .post(
+        "render",
+        "holiday-frame:init",
+        {
+          id: idRef.current,
+          canvas: offscreen,
+          width: Math.max(1, rect.width),
+          height: Math.max(1, rect.height),
+          devicePixelRatio: window.devicePixelRatio || 1,
+          count,
+          isCurrentMonth,
+        },
+        [offscreen],
+      )
+      .then(() => {
+        if (isCurrent) {
+          setIsCanvasReady(true);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isCurrent = false;
+      void workerHost
+        .post("render", "holiday-frame:dispose", { id: idRef.current })
+        .catch(() => undefined);
+    };
+  }, [workerHost]);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+
+    if (!isCanvasReady || !wrapper) {
+      return;
+    }
+
+    const publishResize = () => {
+      const rect = wrapper.getBoundingClientRect();
+
+      void workerHost
+        .post("render", "holiday-frame:resize", {
+          id: idRef.current,
+          width: Math.max(1, rect.width),
+          height: Math.max(1, rect.height),
+          devicePixelRatio: window.devicePixelRatio || 1,
+          count,
+          isCurrentMonth,
+        })
+        .catch(() => undefined);
+    };
+
+    publishResize();
+
+    const resizeObserver = new ResizeObserver(publishResize);
+    resizeObserver.observe(wrapper);
+    window.addEventListener("resize", publishResize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", publishResize);
+    };
+  }, [count, isCanvasReady, isCurrentMonth, workerHost]);
+
+  return (
+    <div ref={wrapperRef} className="holiday-month-frame" aria-hidden="true">
+      <canvas ref={canvasRef} />
+    </div>
+  );
+}
+
 export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
   const [selectedCityId, setSelectedCityId] = useState(holidayCities[0].id);
   const [year, setYear] = useState(currentYear);
@@ -166,6 +270,10 @@ export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
     [selectedCityId],
   );
   const sourceUrl = `https://date.nager.at/api/v3/PublicHolidays/${year}/${selectedCity.countryCode}`;
+  const currentMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(
+    2,
+    "0",
+  )}`;
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -275,7 +383,9 @@ export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
             >
               {holidayCities.map((city) => (
                 <option key={city.id} value={city.id}>
-                  {city.cityLabel} - {city.countryName}
+                  {city.cityLabel === city.countryName
+                    ? `${city.countryName} (${city.countryCode})`
+                    : `${city.cityLabel} - ${city.countryName}`}
                 </option>
               ))}
             </select>
@@ -326,10 +436,21 @@ export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
 
         <div className="holiday-month-grid">
           {result?.months.map((month) => (
-            <section className="holiday-month-card" key={month.monthKey}>
+            <section
+              className={
+                month.monthKey === currentMonthKey
+                  ? "holiday-month-card holiday-month-current"
+                  : "holiday-month-card"
+              }
+              key={month.monthKey}
+            >
+              <HolidayMonthFrame
+                count={month.holidays.length}
+                isCurrentMonth={month.monthKey === currentMonthKey}
+                workerHost={workerHost}
+              />
               <div className="holiday-month-header">
                 <span>{month.monthLabel}</span>
-                <strong>{month.holidays.length}</strong>
               </div>
               <div className="holiday-list">
                 {month.holidays.map((holiday) => (

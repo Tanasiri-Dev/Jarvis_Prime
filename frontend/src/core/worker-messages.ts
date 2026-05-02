@@ -369,3 +369,26 @@ export interface RenderStatusUpdatePayload {
 export interface RenderStatusDisposePayload {
   id: string;
 }
+
+export interface RenderHolidayFrameInitPayload {
+  id: string;
+  canvas: OffscreenCanvas;
+  width: number;
+  height: number;
+  devicePixelRatio: number;
+  count: number;
+  isCurrentMonth: boolean;
+}
+
+export interface RenderHolidayFrameResizePayload {
+  id: string;
+  width: number;
+  height: number;
+  devicePixelRatio: number;
+  count: number;
+  isCurrentMonth: boolean;
+}
+
+export interface RenderHolidayFrameDisposePayload {
+  id: string;
+}

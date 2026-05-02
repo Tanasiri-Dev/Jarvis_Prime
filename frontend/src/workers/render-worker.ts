@@ -1,5 +1,8 @@
 import type {
   RenderInitPayload,
+  RenderHolidayFrameDisposePayload,
+  RenderHolidayFrameInitPayload,
+  RenderHolidayFrameResizePayload,
   RenderResizePayload,
   RenderStatsPayload,
   RenderStatusDisposePayload,
@@ -107,6 +110,17 @@ type StatusCanvasState = {
 
 const statusCanvases = new Map<string, StatusCanvasState>();
 
+type HolidayFrameState = {
+  canvas: OffscreenCanvas;
+  context: OffscreenCanvasRenderingContext2D;
+  width: number;
+  height: number;
+  count: number;
+  isCurrentMonth: boolean;
+};
+
+const holidayFrames = new Map<string, HolidayFrameState>();
+
 const statusPalettes: Record<RenderStatusName, { fill: string; glow: string; symbol: string }> = {
   idle: { fill: "#94a3b8", glow: "rgba(148, 163, 184, 0.38)", symbol: "" },
   running: { fill: "#38bdf8", glow: "rgba(56, 189, 248, 0.58)", symbol: "" },
@@ -182,6 +196,125 @@ const updateStatusCanvas = (payload: RenderStatusUpdatePayload): void => {
 
   state.status = payload.status;
   drawStatusCanvas(state);
+};
+
+const resizeHolidayCanvas = (
+  state: HolidayFrameState,
+  width: number,
+  height: number,
+  devicePixelRatio: number,
+): void => {
+  const dpr = Math.max(1, devicePixelRatio || 1);
+  state.width = Math.max(1, width);
+  state.height = Math.max(1, height);
+  state.canvas.width = Math.floor(state.width * dpr);
+  state.canvas.height = Math.floor(state.height * dpr);
+  state.context.setTransform(dpr, 0, 0, dpr, 0, 0);
+};
+
+const drawRoundedRect = (
+  ctx: OffscreenCanvasRenderingContext2D,
+  x: number,
+  y: number,
+  rectWidth: number,
+  rectHeight: number,
+  radius: number,
+): void => {
+  const safeRadius = Math.min(radius, rectWidth / 2, rectHeight / 2);
+
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + rectWidth - safeRadius, y);
+  ctx.quadraticCurveTo(x + rectWidth, y, x + rectWidth, y + safeRadius);
+  ctx.lineTo(x + rectWidth, y + rectHeight - safeRadius);
+  ctx.quadraticCurveTo(x + rectWidth, y + rectHeight, x + rectWidth - safeRadius, y + rectHeight);
+  ctx.lineTo(x + safeRadius, y + rectHeight);
+  ctx.quadraticCurveTo(x, y + rectHeight, x, y + rectHeight - safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
+  ctx.closePath();
+};
+
+const drawHolidayFrame = (state: HolidayFrameState): void => {
+  const { context: ctx, width: frameWidth, height: frameHeight } = state;
+  const badgeRadius = 15;
+  const badgeX = Math.max(22, frameWidth - 29);
+  const badgeY = 28;
+
+  ctx.clearRect(0, 0, frameWidth, frameHeight);
+
+  if (state.isCurrentMonth) {
+    const glow = ctx.createLinearGradient(0, 0, frameWidth, frameHeight);
+    glow.addColorStop(0, "rgba(45, 212, 191, 0.78)");
+    glow.addColorStop(0.52, "rgba(125, 211, 252, 0.42)");
+    glow.addColorStop(1, "rgba(250, 204, 21, 0.64)");
+    ctx.save();
+    ctx.shadowBlur = 26;
+    ctx.shadowColor = "rgba(45, 212, 191, 0.35)";
+    ctx.strokeStyle = glow;
+    ctx.lineWidth = 1.5;
+    drawRoundedRect(ctx, 1, 1, frameWidth - 2, frameHeight - 2, 8);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  const badgeFill = ctx.createRadialGradient(
+    badgeX - 4,
+    badgeY - 5,
+    2,
+    badgeX,
+    badgeY,
+    badgeRadius + 8,
+  );
+  badgeFill.addColorStop(0, "rgba(199, 255, 242, 0.22)");
+  badgeFill.addColorStop(1, "rgba(45, 212, 191, 0.11)");
+  ctx.fillStyle = badgeFill;
+  ctx.strokeStyle = state.isCurrentMonth ? "rgba(250, 204, 21, 0.72)" : "rgba(45, 212, 191, 0.48)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#c7fff2";
+  ctx.font = "800 11px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(state.count), badgeX, badgeY + 0.5);
+};
+
+const initHolidayFrame = (payload: RenderHolidayFrameInitPayload): void => {
+  const maybeContext = payload.canvas.getContext("2d");
+
+  if (!maybeContext) {
+    throw new Error("Unable to create holiday frame OffscreenCanvas 2D context.");
+  }
+
+  const state: HolidayFrameState = {
+    canvas: payload.canvas,
+    context: maybeContext,
+    width: 1,
+    height: 1,
+    count: payload.count,
+    isCurrentMonth: payload.isCurrentMonth,
+  };
+
+  resizeHolidayCanvas(state, payload.width, payload.height, payload.devicePixelRatio);
+  holidayFrames.set(payload.id, state);
+  drawHolidayFrame(state);
+};
+
+const resizeHolidayFrame = (payload: RenderHolidayFrameResizePayload): void => {
+  const state = holidayFrames.get(payload.id);
+
+  if (!state) {
+    return;
+  }
+
+  state.count = payload.count;
+  state.isCurrentMonth = payload.isCurrentMonth;
+  resizeHolidayCanvas(state, payload.width, payload.height, payload.devicePixelRatio);
+  drawHolidayFrame(state);
 };
 
 const requestFrame = (callback: FrameRequestCallback): void => {
@@ -384,6 +517,25 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
       const payload = message.payload as RenderStatusDisposePayload;
       statusCanvases.delete(payload.id);
       scope.postMessage({ id: message.id, type: "status:disposed", payload: { ok: true } });
+      return;
+    }
+
+    if (message.type === "holiday-frame:init") {
+      initHolidayFrame(message.payload as RenderHolidayFrameInitPayload);
+      scope.postMessage({ id: message.id, type: "holiday-frame:ready", payload: { ok: true } });
+      return;
+    }
+
+    if (message.type === "holiday-frame:resize") {
+      resizeHolidayFrame(message.payload as RenderHolidayFrameResizePayload);
+      scope.postMessage({ id: message.id, type: "holiday-frame:resized", payload: { ok: true } });
+      return;
+    }
+
+    if (message.type === "holiday-frame:dispose") {
+      const payload = message.payload as RenderHolidayFrameDisposePayload;
+      holidayFrames.delete(payload.id);
+      scope.postMessage({ id: message.id, type: "holiday-frame:disposed", payload: { ok: true } });
       return;
     }
 
