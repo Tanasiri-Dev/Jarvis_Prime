@@ -6,6 +6,8 @@ import type {
   DurationResultPayload,
   FactoryClockResultPayload,
   RenderStatusName,
+  TimeUtilityMode,
+  TimeUtilityResultPayload,
   TimezoneConversionResultPayload,
   TimezoneTargetConfig,
   UnitConverterCategory,
@@ -68,6 +70,7 @@ type CalendarWeek = {
 type ActiveTool =
   | "workweek"
   | "duration"
+  | "time-utilities"
   | "timezone"
   | "factory-clock"
   | "stopwatch"
@@ -83,6 +86,7 @@ type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
 const toolOptions: ToolOption[] = [
   { id: "workweek", label: "WorkWeek", category: "Week", audiences: ["engineer", "planner", "operator"] },
   { id: "duration", label: "Duration Calculator", category: "Day", audiences: ["engineer", "planner"] },
+  { id: "time-utilities", label: "Time Utilities", category: "Time", audiences: ["engineer", "planner", "operator"] },
   { id: "factory-clock", label: "Factory Clock", category: "Time", audiences: ["engineer", "planner", "operator"] },
   { id: "timezone", label: "Timezone Converter", category: "Time", audiences: ["engineer", "planner"] },
   { id: "stopwatch", label: "Stopwatch", category: "Time", audiences: ["engineer", "operator"] },
@@ -102,6 +106,21 @@ const toolFilterOptions: Array<{ id: ToolFilter; label: string }> = [
   { id: "planner", label: "Planner" },
   { id: "operator", label: "Operator" },
 ];
+
+const timeUtilityModes: Array<{ id: TimeUtilityMode; label: string }> = [
+  { id: "sum-hours", label: "Sum Hours" },
+  { id: "convert-time", label: "Convert Time" },
+  { id: "work-hours", label: "Work Hours" },
+  { id: "add-subtract", label: "Add / Subtract" },
+  { id: "count-dates", label: "Count Dates" },
+];
+
+const timeUnitOptions = [
+  { id: "seconds", label: "Seconds" },
+  { id: "minutes", label: "Minutes" },
+  { id: "hours", label: "Hours" },
+  { id: "days", label: "Days" },
+] as const;
 
 const alarmSoundOptions = [
   { id: "clean", label: "Clean pulse", frequency: 880 },
@@ -390,6 +409,10 @@ function toDatetimeLocalValue(date: Date): string {
   )}:${pad(date.getMinutes())}`;
 }
 
+function toDateInputValue(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 function formatDuration(milliseconds: number): string {
   const totalMilliseconds = Math.max(0, Math.floor(milliseconds));
   const minutes = Math.floor(totalMilliseconds / 60000);
@@ -610,6 +633,26 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [durationEnd, setDurationEnd] = useState(() =>
     toDatetimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)),
   );
+  const [timeUtilityMode, setTimeUtilityMode] = useState<TimeUtilityMode>("sum-hours");
+  const [sumHourEntries, setSumHourEntries] = useState("1:30\n2h 15m\n45m");
+  const [convertTimeValue, setConvertTimeValue] = useState(90);
+  const [convertFromUnit, setConvertFromUnit] = useState<(typeof timeUnitOptions)[number]["id"]>("minutes");
+  const [convertToUnit, setConvertToUnit] = useState<(typeof timeUnitOptions)[number]["id"]>("hours");
+  const [workHoursStart, setWorkHoursStart] = useState(() => toDatetimeLocalValue(new Date()));
+  const [workHoursEnd, setWorkHoursEnd] = useState(() =>
+    toDatetimeLocalValue(new Date(Date.now() + 8 * 60 * 60 * 1000)),
+  );
+  const [workHoursBreakMinutes, setWorkHoursBreakMinutes] = useState(60);
+  const [workdaysOnly, setWorkdaysOnly] = useState(false);
+  const [timeMathTimestamp, setTimeMathTimestamp] = useState(() => toDatetimeLocalValue(new Date()));
+  const [timeMathOperation, setTimeMathOperation] = useState<"add" | "subtract">("add");
+  const [timeMathAmount, setTimeMathAmount] = useState(2);
+  const [timeMathUnit, setTimeMathUnit] = useState<"minutes" | "hours" | "days">("hours");
+  const [countStartDate, setCountStartDate] = useState(() => toDateInputValue(new Date()));
+  const [countEndDate, setCountEndDate] = useState(() =>
+    toDateInputValue(new Date(Date.now() + 7 * 86400000)),
+  );
+  const [countInclusive, setCountInclusive] = useState(true);
   const [timezoneTimestamp, setTimezoneTimestamp] = useState(() => toDatetimeLocalValue(new Date()));
   const [timezoneConfig, setTimezoneConfig] = useState<TimezoneConfig>(fallbackTimezoneConfig);
   const [sourceTimezone, setSourceTimezone] = useState("Asia/Bangkok");
@@ -679,6 +722,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [result, setResult] = useState<WeekShiftResultPayload | null>(null);
   const [weekRangeResult, setWeekRangeResult] = useState<WeekRangeResultPayload | null>(null);
   const [durationResult, setDurationResult] = useState<DurationResultPayload | null>(null);
+  const [timeUtilityResult, setTimeUtilityResult] = useState<TimeUtilityResultPayload | null>(null);
   const [timezoneResult, setTimezoneResult] = useState<TimezoneConversionResultPayload | null>(
     null,
   );
@@ -690,6 +734,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [status, setStatus] = useState<ToolStatus>("idle");
   const [weekRangeStatus, setWeekRangeStatus] = useState<ToolStatus>("idle");
   const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
+  const [timeUtilityStatus, setTimeUtilityStatus] = useState<ToolStatus>("idle");
   const [timezoneStatus, setTimezoneStatus] = useState<ToolStatus>("idle");
   const [clockStatus, setClockStatus] = useState<ToolStatus>("idle");
   const [alarmStatus, setAlarmStatus] = useState<ToolStatus>("idle");
@@ -699,6 +744,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [error, setError] = useState<string | null>(null);
   const [weekRangeError, setWeekRangeError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
+  const [timeUtilityError, setTimeUtilityError] = useState<string | null>(null);
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [clockError, setClockError] = useState<string | null>(null);
   const [alarmError, setAlarmError] = useState<string | null>(null);
@@ -760,6 +806,44 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       breakMinutes,
     }),
     [breakMinutes, durationEnd, durationStart],
+  );
+  const timeUtilityPayload = useMemo(
+    () => ({
+      mode: timeUtilityMode,
+      sumEntries: sumHourEntries,
+      convertValue: convertTimeValue,
+      convertFromUnit,
+      convertToUnit,
+      workStartTimestamp: workHoursStart,
+      workEndTimestamp: workHoursEnd,
+      workBreakMinutes: workHoursBreakMinutes,
+      workdaysOnly,
+      mathTimestamp: timeMathTimestamp,
+      mathOperation: timeMathOperation,
+      mathAmount: timeMathAmount,
+      mathUnit: timeMathUnit,
+      countStartDate,
+      countEndDate,
+      countInclusive,
+    }),
+    [
+      convertFromUnit,
+      convertTimeValue,
+      convertToUnit,
+      countEndDate,
+      countInclusive,
+      countStartDate,
+      sumHourEntries,
+      timeMathAmount,
+      timeMathOperation,
+      timeMathTimestamp,
+      timeMathUnit,
+      timeUtilityMode,
+      workHoursBreakMinutes,
+      workHoursEnd,
+      workHoursStart,
+      workdaysOnly,
+    ],
   );
   const sourceTimezoneMeta = useMemo(
     () =>
@@ -1043,6 +1127,38 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [durationPayload, workerHost]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setTimeUtilityStatus("running");
+    setTimeUtilityError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<TimeUtilityResultPayload>("compute", "tool:time-utility", timeUtilityPayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setTimeUtilityResult(payload);
+          setTimeUtilityStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setTimeUtilityStatus("error");
+          setTimeUtilityError(reason instanceof Error ? reason.message : "Unable to calculate time utility.");
+        });
+    }, 120);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [timeUtilityPayload, workerHost]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -1777,6 +1893,228 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
             <span>Start: {durationResult?.startLabel ?? "--"}</span>
             <span>End: {durationResult?.endLabel ?? "--"}</span>
           </div>
+        </article>
+        ) : null}
+
+        {activeTool === "time-utilities" ? (
+        <article className="panel tool-card time-utility-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Time</p>
+              <h3>Time Utilities</h3>
+            </div>
+            <StatusChip status={timeUtilityStatus} workerHost={workerHost} />
+          </div>
+
+          <div className="time-mode-picker" role="tablist" aria-label="Time utility mode">
+            {timeUtilityModes.map((mode) => (
+              <button
+                key={mode.id}
+                aria-selected={timeUtilityMode === mode.id}
+                role="tab"
+                type="button"
+                onClick={() => setTimeUtilityMode(mode.id)}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+
+          {timeUtilityMode === "sum-hours" ? (
+            <div className="time-utility-layout">
+              <label className="time-entry-panel">
+                <span>Duration entries</span>
+                <textarea
+                  value={sumHourEntries}
+                  onChange={(event) => setSumHourEntries(event.target.value)}
+                />
+                <small>Accepts 1:30, 2h 15m, 45m, or decimal hours. Separate by line, comma, or semicolon.</small>
+              </label>
+            </div>
+          ) : null}
+
+          {timeUtilityMode === "convert-time" ? (
+            <div className="tool-form time-utility-form">
+              <label>
+                <span>Value</span>
+                <input
+                  type="number"
+                  value={convertTimeValue}
+                  onChange={(event) => setConvertTimeValue(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                <span>From</span>
+                <select
+                  value={convertFromUnit}
+                  onChange={(event) =>
+                    setConvertFromUnit(event.target.value as typeof convertFromUnit)
+                  }
+                >
+                  {timeUnitOptions.map((unit) => (
+                    <option key={unit.id} value={unit.id}>{unit.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>To</span>
+                <select
+                  value={convertToUnit}
+                  onChange={(event) =>
+                    setConvertToUnit(event.target.value as typeof convertToUnit)
+                  }
+                >
+                  {timeUnitOptions.map((unit) => (
+                    <option key={unit.id} value={unit.id}>{unit.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
+
+          {timeUtilityMode === "work-hours" ? (
+            <div className="tool-form time-utility-form">
+              <label>
+                <span>Start</span>
+                <input
+                  type="datetime-local"
+                  value={workHoursStart}
+                  onChange={(event) => setWorkHoursStart(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>End</span>
+                <input
+                  type="datetime-local"
+                  value={workHoursEnd}
+                  onChange={(event) => setWorkHoursEnd(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Break minutes</span>
+                <input
+                  min={0}
+                  type="number"
+                  value={workHoursBreakMinutes}
+                  onChange={(event) => setWorkHoursBreakMinutes(Number(event.target.value))}
+                />
+              </label>
+              <label className="inline-toggle">
+                <input
+                  checked={workdaysOnly}
+                  type="checkbox"
+                  onChange={(event) => setWorkdaysOnly(event.target.checked)}
+                />
+                <span>Weekdays only</span>
+              </label>
+            </div>
+          ) : null}
+
+          {timeUtilityMode === "add-subtract" ? (
+            <div className="tool-form time-utility-form">
+              <label>
+                <span>Base time</span>
+                <input
+                  type="datetime-local"
+                  value={timeMathTimestamp}
+                  onChange={(event) => setTimeMathTimestamp(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Operation</span>
+                <select
+                  value={timeMathOperation}
+                  onChange={(event) => setTimeMathOperation(event.target.value as "add" | "subtract")}
+                >
+                  <option value="add">Add</option>
+                  <option value="subtract">Subtract</option>
+                </select>
+              </label>
+              <label>
+                <span>Amount</span>
+                <input
+                  min={0}
+                  type="number"
+                  value={timeMathAmount}
+                  onChange={(event) => setTimeMathAmount(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                <span>Unit</span>
+                <select
+                  value={timeMathUnit}
+                  onChange={(event) =>
+                    setTimeMathUnit(event.target.value as "minutes" | "hours" | "days")
+                  }
+                >
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                </select>
+              </label>
+            </div>
+          ) : null}
+
+          {timeUtilityMode === "count-dates" ? (
+            <div className="tool-form time-utility-form">
+              <label>
+                <span>Start date</span>
+                <input
+                  type="date"
+                  value={countStartDate}
+                  onChange={(event) => setCountStartDate(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>End date</span>
+                <input
+                  type="date"
+                  value={countEndDate}
+                  onChange={(event) => setCountEndDate(event.target.value)}
+                />
+              </label>
+              <label className="inline-toggle">
+                <input
+                  checked={countInclusive}
+                  type="checkbox"
+                  onChange={(event) => setCountInclusive(event.target.checked)}
+                />
+                <span>Include start date</span>
+              </label>
+            </div>
+          ) : null}
+
+          {timeUtilityError ? <div className="error-note">{timeUtilityError}</div> : null}
+
+          <div className="time-utility-result" aria-live="polite">
+            <span>{timeUtilityResult?.title ?? "Time Utility"}</span>
+            <strong>{timeUtilityResult?.primaryValue ?? "--"}</strong>
+            <p>{timeUtilityResult?.summary ?? "Select a mode and enter time values."}</p>
+          </div>
+
+          <div className="yield-metric-grid">
+            {timeUtilityResult?.metrics.map((metric) => (
+              <article className={`yield-metric-card yield-tone-${metric.tone}`} key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+              </article>
+            )) ?? null}
+          </div>
+
+          <section className="history-panel">
+            <div className="history-header">
+              <span>Details</span>
+              <strong>{timeUtilityResult?.details.length ?? 0}</strong>
+            </div>
+            <div className="time-detail-list">
+              {timeUtilityResult?.details.map((detail) => (
+                <div key={`${detail.label}-${detail.value}`}>
+                  <span>{detail.label}</span>
+                  <strong>{detail.value}</strong>
+                </div>
+              )) ?? null}
+            </div>
+          </section>
         </article>
         ) : null}
 

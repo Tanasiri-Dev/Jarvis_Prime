@@ -110,7 +110,7 @@ Initial tools:
 
 - Date, WorkWeek, shift, and duration calculator.
 - WorkWeek date-to-week and week-to-date range converter. (Implemented in Phase 0 tool library prototype)
-- Time utilities: sum hours, convert time, work hours, add hours, subtract hours, count dates.
+- Time utilities: sum hours, convert time, work hours, add hours, subtract hours, count dates. (Implemented in Phase 0 tool library prototype)
 - Age calculator.
 - Unit converter.
 - Yield and scrap calculator. (Implemented in Phase 0 tool library prototype)
@@ -314,11 +314,10 @@ Acceptance:
 ## Near-Term Tool Build Order
 
 1. OEE / downtime calculator.
-2. Expanded duration/time utilities: sum hours, add/subtract hours, work hours, count dates.
-3. Public holiday lookup by city.
-4. SPC quick helper.
-5. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
-6. CSV and log quick parser after sample logs are available.
+2. Public holiday lookup by city.
+3. SPC quick helper.
+4. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
+5. CSV and log quick parser after sample logs are available.
 
 ---
 

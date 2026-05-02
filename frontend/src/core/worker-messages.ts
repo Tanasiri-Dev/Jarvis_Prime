@@ -86,6 +86,50 @@ export interface DurationResultPayload {
   crossesMidnight: boolean;
 }
 
+export type TimeUtilityMode =
+  | "sum-hours"
+  | "convert-time"
+  | "work-hours"
+  | "add-subtract"
+  | "count-dates";
+
+export interface TimeUtilityRequestPayload {
+  mode: TimeUtilityMode;
+  sumEntries: string;
+  convertValue: number;
+  convertFromUnit: "seconds" | "minutes" | "hours" | "days";
+  convertToUnit: "seconds" | "minutes" | "hours" | "days";
+  workStartTimestamp: string;
+  workEndTimestamp: string;
+  workBreakMinutes: number;
+  workdaysOnly: boolean;
+  mathTimestamp: string;
+  mathOperation: "add" | "subtract";
+  mathAmount: number;
+  mathUnit: "minutes" | "hours" | "days";
+  countStartDate: string;
+  countEndDate: string;
+  countInclusive: boolean;
+}
+
+export interface TimeUtilityMetric {
+  label: string;
+  value: string;
+  tone: "good" | "warning" | "danger" | "neutral";
+}
+
+export interface TimeUtilityResultPayload {
+  mode: TimeUtilityMode;
+  title: string;
+  primaryValue: string;
+  summary: string;
+  metrics: TimeUtilityMetric[];
+  details: Array<{
+    label: string;
+    value: string;
+  }>;
+}
+
 export interface TimezoneConversionRequestPayload {
   localTimestamp: string;
   sourceTimezone: string;

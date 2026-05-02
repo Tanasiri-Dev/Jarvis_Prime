@@ -65,6 +65,10 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Start and End inputs are equal width.
   - Break minutes is displayed as a tile aligned with Crosses midnight.
   - Uses `tool:duration` in `compute-worker`.
+- Time Utilities
+  - Includes Sum Hours, Convert Time, Work Hours, Add/Subtract Time, and Count Dates modes.
+  - Supports common duration formats such as `1:30`, `2h 15m`, `45m`, and decimal hours.
+  - Uses `tool:time-utility` in `compute-worker`.
 - Timezone Converter
   - Modern timezone card UI.
   - Defaults are loaded from `frontend/public/config/timezones.json`.

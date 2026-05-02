@@ -8,6 +8,9 @@ import type {
   DurationResultPayload,
   FactoryClockRequestPayload,
   FactoryClockResultPayload,
+  TimeUtilityMode,
+  TimeUtilityRequestPayload,
+  TimeUtilityResultPayload,
   TimezoneConversionItem,
   TimezoneConversionRequestPayload,
   TimezoneConversionResultPayload,
@@ -375,6 +378,308 @@ function calculateDuration(payload: DurationRequestPayload): DurationResultPaylo
     endLabel: toLocalDateTime(end),
     crossesMidnight: start.toDateString() !== end.toDateString(),
   };
+}
+
+const secondsByTimeUnit: Record<string, number> = {
+  seconds: 1,
+  minutes: 60,
+  hours: 3600,
+  days: 86400,
+};
+
+function formatDurationSeconds(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds)) {
+    return "--";
+  }
+
+  const sign = totalSeconds < 0 ? "-" : "";
+  const absoluteSeconds = Math.abs(Math.round(totalSeconds));
+  const days = Math.floor(absoluteSeconds / 86400);
+  const hours = Math.floor((absoluteSeconds % 86400) / 3600);
+  const minutes = Math.floor((absoluteSeconds % 3600) / 60);
+  const seconds = absoluteSeconds % 60;
+
+  if (days > 0) {
+    return `${sign}${days} d ${hours} hr ${minutes} min`;
+  }
+
+  if (hours > 0) {
+    return `${sign}${hours} hr ${minutes} min`;
+  }
+
+  if (minutes > 0) {
+    return `${sign}${minutes} min ${seconds} sec`;
+  }
+
+  return `${sign}${seconds} sec`;
+}
+
+function parseDurationEntry(entry: string): number {
+  const value = entry.trim().toLowerCase();
+
+  if (value.length === 0) {
+    throw new Error("Empty duration entry.");
+  }
+
+  const colonMatch = value.match(/^(-?\d+):([0-5]?\d)(?::([0-5]?\d))?$/);
+
+  if (colonMatch) {
+    const [, hours, minutes, seconds = "0"] = colonMatch;
+    return Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
+  }
+
+  const unitMatches = Array.from(value.matchAll(/(-?\d+(?:\.\d+)?)\s*(d|day|days|h|hr|hrs|hour|hours|m|min|mins|minute|minutes|s|sec|secs|second|seconds)/g));
+
+  if (unitMatches.length > 0) {
+    return unitMatches.reduce((total, match) => {
+      const amount = Number(match[1]);
+      const unit = match[2];
+      const multiplier = unit.startsWith("d")
+        ? 86400
+        : unit.startsWith("h")
+          ? 3600
+          : unit.startsWith("m")
+            ? 60
+            : 1;
+
+      return total + amount * multiplier;
+    }, 0);
+  }
+
+  const decimalHours = Number(value);
+
+  if (Number.isFinite(decimalHours)) {
+    return decimalHours * 3600;
+  }
+
+  throw new Error(`Unable to parse duration entry: ${entry}`);
+}
+
+function parseDurationEntries(entries: string): number[] {
+  return entries
+    .split(/[\n,;]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map(parseDurationEntry);
+}
+
+function parseDateOnly(dateValue: string): Date {
+  const date = new Date(`${dateValue}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Enter a valid date.");
+  }
+
+  return date;
+}
+
+function countCalendarDays(start: Date, end: Date, inclusive: boolean): number {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor((endDate.getTime() - startDate.getTime()) / 86400000);
+
+  return Math.max(0, diffDays + (inclusive ? 1 : 0));
+}
+
+function countBusinessDays(start: Date, end: Date, inclusive: boolean): number {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  let count = 0;
+  const cursor = new Date(startDate);
+
+  if (!inclusive) {
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  while (cursor <= endDate) {
+    const day = cursor.getDay();
+
+    if (day !== 0 && day !== 6) {
+      count += 1;
+    }
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return count;
+}
+
+function getWeekdayWorkSeconds(start: Date, end: Date): number {
+  if (end <= start) {
+    return 0;
+  }
+
+  let totalSeconds = 0;
+  const cursor = new Date(start);
+
+  while (cursor < end) {
+    const nextMidnight = new Date(cursor);
+    nextMidnight.setHours(24, 0, 0, 0);
+    const segmentEnd = nextMidnight < end ? nextMidnight : end;
+    const day = cursor.getDay();
+
+    if (day !== 0 && day !== 6) {
+      totalSeconds += (segmentEnd.getTime() - cursor.getTime()) / 1000;
+    }
+
+    cursor.setTime(segmentEnd.getTime());
+  }
+
+  return totalSeconds;
+}
+
+function calculateTimeUtility(payload: TimeUtilityRequestPayload): TimeUtilityResultPayload {
+  if (payload.mode === "sum-hours") {
+    const durations = parseDurationEntries(payload.sumEntries);
+    const totalSeconds = durations.reduce((total, seconds) => total + seconds, 0);
+
+    return {
+      mode: payload.mode,
+      title: "Sum Hours",
+      primaryValue: formatDurationSeconds(totalSeconds),
+      summary: `${durations.length} entries summed.`,
+      metrics: [
+        { label: "Total hours", value: formatNumber(totalSeconds / 3600), tone: "good" },
+        { label: "Total minutes", value: formatNumber(totalSeconds / 60), tone: "neutral" },
+        { label: "Entries", value: formatNumber(durations.length), tone: "neutral" },
+      ],
+      details: durations.map((seconds, index) => ({
+        label: `Entry ${index + 1}`,
+        value: formatDurationSeconds(seconds),
+      })),
+    };
+  }
+
+  if (payload.mode === "convert-time") {
+    const value = Number(payload.convertValue);
+    const fromMultiplier = secondsByTimeUnit[payload.convertFromUnit];
+    const toMultiplier = secondsByTimeUnit[payload.convertToUnit];
+
+    if (!Number.isFinite(value) || !fromMultiplier || !toMultiplier) {
+      throw new Error("Enter a valid time conversion.");
+    }
+
+    const seconds = value * fromMultiplier;
+    const converted = seconds / toMultiplier;
+
+    return {
+      mode: payload.mode,
+      title: "Convert Time",
+      primaryValue: `${formatNumber(converted)} ${payload.convertToUnit}`,
+      summary: `${formatNumber(value)} ${payload.convertFromUnit} equals ${formatNumber(converted)} ${payload.convertToUnit}.`,
+      metrics: [
+        { label: "Seconds", value: formatNumber(seconds), tone: "neutral" },
+        { label: "Minutes", value: formatNumber(seconds / 60), tone: "neutral" },
+        { label: "Hours", value: formatNumber(seconds / 3600), tone: "good" },
+      ],
+      details: [
+        { label: "Input", value: `${formatNumber(value)} ${payload.convertFromUnit}` },
+        { label: "Output", value: `${formatNumber(converted)} ${payload.convertToUnit}` },
+      ],
+    };
+  }
+
+  if (payload.mode === "work-hours") {
+    const start = new Date(payload.workStartTimestamp);
+    const end = new Date(payload.workEndTimestamp);
+    const breakSeconds = Math.max(0, Number(payload.workBreakMinutes) * 60);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || !Number.isFinite(breakSeconds)) {
+      throw new Error("Enter valid start, end, and break values.");
+    }
+
+    if (end < start) {
+      throw new Error("Work end must be after work start.");
+    }
+
+    const grossSeconds = payload.workdaysOnly
+      ? getWeekdayWorkSeconds(start, end)
+      : (end.getTime() - start.getTime()) / 1000;
+    const netSeconds = Math.max(0, grossSeconds - breakSeconds);
+
+    return {
+      mode: payload.mode,
+      title: "Work Hours",
+      primaryValue: formatDurationSeconds(netSeconds),
+      summary: payload.workdaysOnly ? "Weekend time excluded." : "Calendar time included.",
+      metrics: [
+        { label: "Net hours", value: formatNumber(netSeconds / 3600), tone: "good" },
+        { label: "Gross hours", value: formatNumber(grossSeconds / 3600), tone: "neutral" },
+        { label: "Break", value: formatDurationSeconds(breakSeconds), tone: "neutral" },
+      ],
+      details: [
+        { label: "Start", value: toLocalDateTime(start) },
+        { label: "End", value: toLocalDateTime(end) },
+        { label: "Mode", value: payload.workdaysOnly ? "Weekdays only" : "Calendar time" },
+      ],
+    };
+  }
+
+  if (payload.mode === "add-subtract") {
+    const baseDate = new Date(payload.mathTimestamp);
+    const amount = Number(payload.mathAmount);
+    const multiplier = secondsByTimeUnit[payload.mathUnit];
+
+    if (Number.isNaN(baseDate.getTime()) || !Number.isFinite(amount) || !multiplier) {
+      throw new Error("Enter valid time math values.");
+    }
+
+    const signedSeconds = amount * multiplier * (payload.mathOperation === "subtract" ? -1 : 1);
+    const resultDate = new Date(baseDate.getTime() + signedSeconds * 1000);
+
+    return {
+      mode: payload.mode,
+      title: "Add / Subtract Time",
+      primaryValue: toLocalDateTime(resultDate),
+      summary: `${payload.mathOperation === "subtract" ? "Subtracted" : "Added"} ${formatDurationSeconds(Math.abs(signedSeconds))}.`,
+      metrics: [
+        { label: "Base", value: toLocalDateTime(baseDate), tone: "neutral" },
+        { label: "Delta", value: formatDurationSeconds(signedSeconds), tone: "neutral" },
+        { label: "Result", value: toLocalDateTime(resultDate), tone: "good" },
+      ],
+      details: [
+        { label: "Operation", value: payload.mathOperation },
+        { label: "Unit", value: payload.mathUnit },
+      ],
+    };
+  }
+
+  if (payload.mode === "count-dates") {
+    const start = parseDateOnly(payload.countStartDate);
+    const end = parseDateOnly(payload.countEndDate);
+
+    if (end < start) {
+      throw new Error("End date must be after start date.");
+    }
+
+    const calendarDays = countCalendarDays(start, end, payload.countInclusive);
+    const businessDays = countBusinessDays(start, end, payload.countInclusive);
+    const weekendDays = Math.max(0, calendarDays - businessDays);
+
+    return {
+      mode: payload.mode,
+      title: "Count Dates",
+      primaryValue: `${calendarDays} days`,
+      summary: payload.countInclusive ? "Counting includes both start and end dates." : "Counting excludes the start date.",
+      metrics: [
+        { label: "Calendar days", value: formatNumber(calendarDays), tone: "good" },
+        { label: "Business days", value: formatNumber(businessDays), tone: "neutral" },
+        { label: "Weekend days", value: formatNumber(weekendDays), tone: "neutral" },
+      ],
+      details: [
+        { label: "Start", value: toDateKey(start) },
+        { label: "End", value: toDateKey(end) },
+      ],
+    };
+  }
+
+  throw new Error("Unsupported time utility mode.");
 }
 
 function calculateTimezoneConversion(
@@ -1012,6 +1317,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:duration") {
       const payload = calculateDuration(message.payload as DurationRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:duration:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:time-utility") {
+      const payload = calculateTimeUtility(message.payload as TimeUtilityRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:time-utility:result", payload });
       return;
     }
 
