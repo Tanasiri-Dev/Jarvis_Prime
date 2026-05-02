@@ -9,6 +9,8 @@ import { DiagnosticsModule } from "../modules/diagnostics/DiagnosticsModule";
 import { DiagnosticsPanel } from "../modules/diagnostics/DiagnosticsPanel";
 import { EngineeringToolsModule } from "../modules/engineering-tools/EngineeringToolsModule";
 import { EngineeringToolsPanel } from "../modules/engineering-tools/EngineeringToolsPanel";
+import { PublicHolidayPanel } from "../modules/public-holidays/PublicHolidayPanel";
+import { PublicHolidaysModule } from "../modules/public-holidays/PublicHolidaysModule";
 import "./App.css";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
@@ -20,7 +22,7 @@ const themeOptions = [
 ] as const;
 
 type ThemeMode = (typeof themeOptions)[number]["id"];
-type AppRoute = "command-center" | "engineering-tools" | "diagnostics";
+type AppRoute = "command-center" | "engineering-tools" | "public-holidays" | "diagnostics";
 
 const routes: Array<{ id: AppRoute; href: string; label: string; title: string; eyebrow: string }> = [
   {
@@ -36,6 +38,13 @@ const routes: Array<{ id: AppRoute; href: string; label: string; title: string; 
     label: "Tools",
     title: "Engineering Tools",
     eyebrow: "Worker-backed utilities",
+  },
+  {
+    id: "public-holidays",
+    href: "#public-holidays",
+    label: "Holidays",
+    title: "Public Holidays",
+    eyebrow: "Planner calendar",
   },
   {
     id: "diagnostics",
@@ -80,6 +89,7 @@ function createRegistry(): ModuleRegistry {
   registry.register(new CommandCenterModule());
   registry.register(new DiagnosticsModule());
   registry.register(new EngineeringToolsModule());
+  registry.register(new PublicHolidaysModule());
   return registry;
 }
 
@@ -219,6 +229,8 @@ export function App() {
         ) : null}
 
         {activeRoute === "engineering-tools" ? <EngineeringToolsPanel workerHost={workerHost} /> : null}
+
+        {activeRoute === "public-holidays" ? <PublicHolidayPanel workerHost={workerHost} /> : null}
 
         {activeRoute === "diagnostics" ? (
           <DiagnosticsPanel theme={theme} workerHost={workerHost} />

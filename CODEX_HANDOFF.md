@@ -8,7 +8,7 @@ Use this file to resume development quickly with Codex without restating the who
 - Remote: `git@github.com:Tanasiri-Dev/Jarvis_Prime.git`
 - Main branch: `master`
 - Frontend dev URL: `http://127.0.0.1:5173/`
-- Primary app route for current work: `#engineering-tools`
+- Primary app route for current work: `#public-holidays`
 
 ## Architecture Rules To Preserve
 
@@ -19,6 +19,9 @@ Use this file to resume development quickly with Codex without restating the who
 - Keep features module-oriented. Current engineering tools live under:
   - `frontend/src/modules/engineering-tools/EngineeringToolsPanel.tsx`
   - `frontend/src/modules/engineering-tools/EngineeringToolsModule.ts`
+- Public holiday planner route lives under:
+  - `frontend/src/modules/public-holidays/PublicHolidayPanel.tsx`
+  - `frontend/src/modules/public-holidays/PublicHolidaysModule.ts`
 - Shared worker message contracts live in:
   - `frontend/src/core/worker-messages.ts`
 - Tool calculations currently live in:
@@ -110,6 +113,16 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Designed for Planner and Manufacturing Engineer use cases.
   - Uses `tool:capacity-plan` in `compute-worker`.
 
+## Implemented Planner Tools
+
+Route: `http://127.0.0.1:5173/#public-holidays`
+
+- Public Holidays
+  - Added as a left-side primary navigation item named `Holidays`.
+  - Looks up public holidays by seeded city presets: Bangkok, Durham NC, Los Angeles, Shanghai, Rome, and Tokyo.
+  - Uses Nager.Date public holiday API and performs city/subdivision filtering plus month grouping in `compute-worker`.
+  - Uses `tool:public-holidays` in `compute-worker`.
+
 ## UI System Notes
 
 - Theme switcher is compact icon-only: moon for dark, sun for white.
@@ -126,7 +139,7 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
 
 ## Recommended Next Tool
 
-Add `OEE / downtime calculator` next.
+Add `OEE / downtime calculator` next, then `SPC quick helper`.
 
 Suggested first fields:
 

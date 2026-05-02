@@ -121,7 +121,7 @@ Initial tools:
 - Log parser.
 - Recipe compare.
 - File checksum and metadata viewer.
-- Public holiday lookup by city or country.
+- Public holiday lookup by city or country. (Implemented in Phase 0 planner calendar route)
 
 Architecture:
 
@@ -314,10 +314,9 @@ Acceptance:
 ## Near-Term Tool Build Order
 
 1. OEE / downtime calculator.
-2. Public holiday lookup by city.
-3. SPC quick helper.
-4. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
-5. CSV and log quick parser after sample logs are available.
+2. SPC quick helper.
+3. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
+4. CSV and log quick parser after sample logs are available.
 
 ---
 

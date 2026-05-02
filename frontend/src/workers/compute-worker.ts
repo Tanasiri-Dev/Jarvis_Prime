@@ -8,6 +8,10 @@ import type {
   DurationResultPayload,
   FactoryClockRequestPayload,
   FactoryClockResultPayload,
+  PublicHolidayLookupItem,
+  PublicHolidayLookupMonth,
+  PublicHolidayLookupRequestPayload,
+  PublicHolidayLookupResultPayload,
   TimeUtilityMode,
   TimeUtilityRequestPayload,
   TimeUtilityResultPayload,
@@ -1287,6 +1291,113 @@ function calculateCapacityPlan(payload: CapacityPlanRequestPayload): CapacityPla
   };
 }
 
+const monthFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  year: "numeric",
+});
+
+const dayFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "2-digit",
+});
+
+function calculatePublicHolidays(
+  payload: PublicHolidayLookupRequestPayload,
+): PublicHolidayLookupResultPayload {
+  const year = Math.trunc(Number(payload.year));
+
+  if (!Number.isFinite(year) || year < 1900 || year > 9999) {
+    throw new Error("Enter a valid holiday year.");
+  }
+
+  const todayKey = toDateKey(new Date());
+  const scopedHolidays = payload.holidays
+    .filter((holiday) => {
+      if (holiday.global || !holiday.counties || holiday.counties.length === 0) {
+        return true;
+      }
+
+      return payload.subdivisionCode ? holiday.counties.includes(payload.subdivisionCode) : false;
+    })
+    .sort((left, right) => left.date.localeCompare(right.date));
+
+  const items: PublicHolidayLookupItem[] = scopedHolidays.map((holiday) => {
+    const date = parseDateOnly(holiday.date);
+    const isRegional = Boolean(holiday.counties?.length);
+
+    return {
+      date: holiday.date,
+      dayLabel: dayFormatter.format(date),
+      localName: holiday.localName,
+      name: holiday.name,
+      monthLabel: monthFormatter.format(date),
+      scopeLabel: isRegional ? "Regional" : "National",
+      typeLabel: holiday.types?.join(", ") || "Public",
+      isUpcoming: holiday.date >= todayKey,
+    };
+  });
+
+  const monthMap = new Map<string, PublicHolidayLookupMonth>();
+
+  for (const item of items) {
+    const monthKey = item.date.slice(0, 7);
+    const existing = monthMap.get(monthKey);
+
+    if (existing) {
+      existing.holidays.push(item);
+    } else {
+      monthMap.set(monthKey, {
+        monthKey,
+        monthLabel: item.monthLabel,
+        holidays: [item],
+      });
+    }
+  }
+
+  const nextHoliday = items.find((item) => item.isUpcoming) ?? null;
+  const nextHolidayDistance = nextHoliday
+    ? Math.ceil(
+        (parseDateOnly(nextHoliday.date).getTime() - parseDateOnly(todayKey).getTime()) / 86400000,
+      )
+    : null;
+  const regionalCount = items.filter((item) => item.scopeLabel === "Regional").length;
+
+  return {
+    year,
+    cityLabel: payload.cityLabel,
+    countryName: payload.countryName,
+    countryCode: payload.countryCode,
+    total: items.length,
+    upcomingCount: items.filter((item) => item.isUpcoming).length,
+    nextHoliday,
+    months: Array.from(monthMap.values()),
+    metrics: [
+      { label: "Total holidays", value: formatNumber(items.length), tone: "good" },
+      {
+        label: "Upcoming",
+        value: formatNumber(items.filter((item) => item.isUpcoming).length),
+        tone: "neutral",
+      },
+      {
+        label: "Regional",
+        value: formatNumber(regionalCount),
+        tone: regionalCount > 0 ? "warning" : "neutral",
+      },
+      {
+        label: "Next in",
+        value:
+          nextHolidayDistance === null
+            ? "Next year"
+            : nextHolidayDistance === 0
+              ? "Today"
+              : `${formatNumber(nextHolidayDistance)} days`,
+        tone: nextHolidayDistance === 0 ? "warning" : "neutral",
+      },
+    ],
+  };
+}
+
 scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
   const message = event.data;
 
@@ -1355,6 +1466,14 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:capacity-plan") {
       const payload = calculateCapacityPlan(message.payload as CapacityPlanRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:capacity-plan:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:public-holidays") {
+      const payload = calculatePublicHolidays(
+        message.payload as PublicHolidayLookupRequestPayload,
+      );
+      scope.postMessage({ id: message.id, type: "tool:public-holidays:result", payload });
       return;
     }
 

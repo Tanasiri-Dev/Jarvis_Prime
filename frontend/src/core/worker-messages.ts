@@ -273,6 +273,59 @@ export interface CapacityPlanResultPayload {
   recommendedActions: string[];
 }
 
+export interface PublicHolidayApiItem {
+  date: string;
+  localName: string;
+  name: string;
+  countryCode: string;
+  global: boolean;
+  counties: string[] | null;
+  launchYear: number | null;
+  types: string[];
+}
+
+export interface PublicHolidayLookupRequestPayload {
+  year: number;
+  cityLabel: string;
+  countryName: string;
+  countryCode: string;
+  subdivisionCode?: string;
+  holidays: PublicHolidayApiItem[];
+}
+
+export interface PublicHolidayLookupItem {
+  date: string;
+  dayLabel: string;
+  localName: string;
+  name: string;
+  monthLabel: string;
+  scopeLabel: string;
+  typeLabel: string;
+  isUpcoming: boolean;
+}
+
+export interface PublicHolidayLookupMonth {
+  monthKey: string;
+  monthLabel: string;
+  holidays: PublicHolidayLookupItem[];
+}
+
+export interface PublicHolidayLookupResultPayload {
+  year: number;
+  cityLabel: string;
+  countryName: string;
+  countryCode: string;
+  total: number;
+  upcomingCount: number;
+  nextHoliday: PublicHolidayLookupItem | null;
+  months: PublicHolidayLookupMonth[];
+  metrics: Array<{
+    label: string;
+    value: string;
+    tone: "good" | "warning" | "danger" | "neutral";
+  }>;
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;
