@@ -31,7 +31,61 @@ const durationOptions = [
   { value: 120, label: "2 hr" },
 ];
 
-const todayKey = new Date().toISOString().slice(0, 10);
+const workdayHours = Array.from({ length: 15 }, (_, index) => 7 + index);
+const calendarHourStart = 7;
+const calendarHourHeight = 46;
+const calendarDayHeaderHeight = 76;
+const calendarHourColumnWidth = 58;
+
+function toDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+const todayKey = toDateKey(new Date());
+
+function addDays(date: Date, amount: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function parseDateKey(dateKey: string): Date {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function getMonday(date: Date): Date {
+  const next = new Date(date);
+  const day = next.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  next.setDate(next.getDate() + diff);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function formatMonthYear(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
+}
+
+function formatWeekday(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(date);
+}
+
+function formatShortDate(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
+function formatWeekRange(start: Date): string {
+  const end = addDays(start, 4);
+  return `${formatShortDate(start)} - ${formatShortDate(end)}, ${end.getFullYear()}`;
+}
+
+function getCalendarMonthDays(anchorDate: Date): Date[] {
+  const firstDay = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
+  const gridStart = addDays(firstDay, -firstDay.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+}
 
 function StatusChip({ label, status, workerHost }: StatusChipProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -157,12 +211,166 @@ function buildMockBookings(date: string): MeetingRoomBooking[] {
   ];
 }
 
+function buildWorkWeekBookings(weekStart: Date): MeetingRoomBooking[] {
+  const days = Array.from({ length: 5 }, (_, index) => toDateKey(addDays(weekStart, index)));
+
+  return days.flatMap((date, index) => {
+    const baseBookings = buildMockBookings(date);
+
+    if (index === 0) {
+      return [
+        baseBookings[0],
+        {
+          id: `${date}-all-hands`,
+          roomId: "chang",
+          roomName: "Chang",
+          title: "Weekly yields report",
+          owner: "Planner",
+          start: `${date}T08:00:00`,
+          end: `${date}T08:45:00`,
+          purpose: "Output review",
+        },
+        {
+          id: `${date}-standup-night`,
+          roomId: "phuket",
+          roomName: "Phuket",
+          title: "Daily stand-up Q2/Q3 readiness",
+          owner: "Engineer",
+          start: `${date}T20:00:00`,
+          end: `${date}T20:45:00`,
+          purpose: "Night coverage",
+        },
+      ];
+    }
+
+    if (index === 1) {
+      return [
+        baseBookings[1],
+        {
+          id: `${date}-npi`,
+          roomId: "pattaya",
+          roomName: "Pattaya",
+          title: "NPI meeting between Fabrinet and Phononic",
+          owner: "NPI",
+          start: `${date}T14:00:00`,
+          end: `${date}T15:00:00`,
+          purpose: "Build plan",
+        },
+        {
+          id: `${date}-team-dinner`,
+          roomId: "singha",
+          roomName: "Singha",
+          title: "Team dinner planning",
+          owner: "Program",
+          start: `${date}T18:00:00`,
+          end: `${date}T19:30:00`,
+          purpose: "Team event",
+        },
+      ];
+    }
+
+    if (index === 2) {
+      return [
+        {
+          id: `${date}-capacity`,
+          roomId: "chang",
+          roomName: "Chang",
+          title: "Capacity readiness proposal",
+          owner: "Planner",
+          start: `${date}T08:00:00`,
+          end: `${date}T08:45:00`,
+          purpose: "Capacity",
+        },
+        {
+          id: `${date}-contract`,
+          roomId: "phuket",
+          roomName: "Phuket",
+          title: "Contract discussion",
+          owner: "Management",
+          start: `${date}T14:00:00`,
+          end: `${date}T15:30:00`,
+          purpose: "Commercial review",
+        },
+      ];
+    }
+
+    if (index === 3) {
+      return [
+        {
+          id: `${date}-daily`,
+          roomId: "pattaya",
+          roomName: "Pattaya",
+          title: "Daily stand-up for Q2/Q3 readiness",
+          owner: "Engineer",
+          start: `${date}T09:00:00`,
+          end: `${date}T09:45:00`,
+          purpose: "Execution",
+        },
+        {
+          id: `${date}-solution`,
+          roomId: "chang",
+          roomName: "Chang",
+          title: "NSW solution presentation",
+          owner: "IT",
+          start: `${date}T10:00:00`,
+          end: `${date}T10:45:00`,
+          purpose: "Support",
+        },
+        {
+          id: `${date}-chang-project`,
+          roomId: "chang",
+          roomName: "Chang",
+          title: "Project Chang status update",
+          owner: "Program",
+          start: `${date}T20:30:00`,
+          end: `${date}T21:15:00`,
+          purpose: "Program status",
+        },
+      ];
+    }
+
+    return [
+      {
+        id: `${date}-qa`,
+        roomId: "singha",
+        roomName: "Singha",
+        title: "Quality assurance weekly",
+        owner: "Quality",
+        start: `${date}T08:00:00`,
+        end: `${date}T09:00:00`,
+        purpose: "Quality",
+      },
+    ];
+  });
+}
+
 function formatBookingTime(value: string): string {
   return new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   }).format(new Date(value));
+}
+
+function getBookingTop(start: string): number {
+  const date = new Date(start);
+  const minutes = Math.max(0, (date.getHours() - calendarHourStart) * 60 + date.getMinutes());
+
+  return calendarDayHeaderHeight + (minutes / 60) * calendarHourHeight;
+}
+
+function getBookingHeight(start: string, end: string): number {
+  const durationMinutes = Math.max(20, (new Date(end).getTime() - new Date(start).getTime()) / 60000);
+
+  return Math.max(24, (durationMinutes / 60) * calendarHourHeight);
+}
+
+function getBookingLeft(dayIndex: number): string {
+  return `calc(${calendarHourColumnWidth}px + ((100% - ${calendarHourColumnWidth}px) / 5) * ${dayIndex} + 4px)`;
+}
+
+function getBookingWidth(): string {
+  return `calc((100% - ${calendarHourColumnWidth}px) / 5 - 8px)`;
 }
 
 export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
@@ -172,10 +380,22 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
   const [selectedRoomId, setSelectedRoomId] = useState("pattaya");
   const [owner, setOwner] = useState("Planner");
   const [purpose, setPurpose] = useState("Production sync");
+  const [visibleRoomIds, setVisibleRoomIds] = useState(() => new Set(meetingRooms.map((room) => room.id)));
   const [status, setStatus] = useState<RenderStatusName>("idle");
   const [result, setResult] = useState<MeetingRoomResultPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const weekStart = useMemo(() => getMonday(parseDateKey(meetingDate)), [meetingDate]);
+  const weekDays = useMemo(
+    () => Array.from({ length: 5 }, (_, index) => addDays(weekStart, index)),
+    [weekStart],
+  );
+  const weekBookings = useMemo(() => buildWorkWeekBookings(weekStart), [weekStart]);
   const bookings = useMemo(() => buildMockBookings(meetingDate), [meetingDate]);
+  const visibleBookings = useMemo(
+    () => weekBookings.filter((booking) => visibleRoomIds.has(booking.roomId)),
+    [visibleRoomIds, weekBookings],
+  );
+  const monthDays = useMemo(() => getCalendarMonthDays(parseDateKey(meetingDate)), [meetingDate]);
   const selectedRoom = result?.rooms.find((room) => room.roomId === selectedRoomId);
 
   const requestPayload = useMemo(
@@ -218,6 +438,22 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
       isCurrent = false;
     };
   }, [requestPayload, workerHost]);
+
+  const goToToday = () => setMeetingDate(todayKey);
+  const moveWeek = (amount: number) => setMeetingDate(toDateKey(addDays(weekStart, amount * 7)));
+  const toggleRoom = (roomId: string) => {
+    setVisibleRoomIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(roomId)) {
+        next.delete(roomId);
+      } else {
+        next.add(roomId);
+      }
+
+      return next;
+    });
+  };
 
   return (
     <section className="meeting-page" aria-label="Meeting Room Planner">
@@ -320,65 +556,124 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
           )) ?? null}
         </div>
 
-        <div className="meeting-room-grid">
-          {result?.rooms.map((room) => (
-            <button
-              key={room.roomId}
-              className={`meeting-room-card meeting-room-${room.status}`}
-              type="button"
-              aria-pressed={selectedRoomId === room.roomId}
-              onClick={() => setSelectedRoomId(room.roomId)}
-            >
-              <span>{room.zone}</span>
-              <strong>{room.roomName}</strong>
-              <small>{room.capacity} seats • {room.utilizationPercent}% booked</small>
-              <em>{room.statusLabel}</em>
-            </button>
-          )) ?? null}
-        </div>
+        <div className="meeting-outlook-shell">
+          <aside className="meeting-outlook-sidebar" aria-label="Meeting room calendars">
+            <section className="meeting-mini-calendar">
+              <div className="meeting-mini-calendar-header">
+                <strong>{formatMonthYear(parseDateKey(meetingDate))}</strong>
+              </div>
+              <div className="meeting-mini-weekdays">
+                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+                  <span key={day}>{day}</span>
+                ))}
+              </div>
+              <div className="meeting-mini-days">
+                {monthDays.map((day) => {
+                  const key = toDateKey(day);
+                  const isSelected = key === meetingDate;
+                  const isCurrentMonth = day.getMonth() === parseDateKey(meetingDate).getMonth();
 
-        <div className="meeting-planner-grid">
-          <section className="history-panel">
-            <div className="history-header">
-              <span>Timeline</span>
-              <strong>{meetingDate}</strong>
+                  return (
+                    <button
+                      key={key}
+                      className={isCurrentMonth ? "" : "is-muted"}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setMeetingDate(key)}
+                    >
+                      {day.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="meeting-calendar-list">
+              <p className="eyebrow">Rooms</p>
+              {meetingRooms.map((room) => (
+                <label key={room.id}>
+                  <input
+                    checked={visibleRoomIds.has(room.id)}
+                    type="checkbox"
+                    onChange={() => toggleRoom(room.id)}
+                  />
+                  <span>{room.name}</span>
+                </label>
+              ))}
+            </section>
+          </aside>
+
+          <section className="meeting-outlook-calendar" aria-label="Work week room calendar">
+            <div className="meeting-calendar-toolbar">
+              <div className="meeting-calendar-actions">
+                <button type="button" onClick={goToToday}>Today</button>
+                <button type="button" aria-label="Previous week" onClick={() => moveWeek(-1)}>‹</button>
+                <button type="button" aria-label="Next week" onClick={() => moveWeek(1)}>›</button>
+              </div>
+              <strong>{formatWeekRange(weekStart)}</strong>
+              <span>Work Week</span>
             </div>
-            <div className="meeting-timeline">
-              {result?.timeline.map((slot) => (
-                <div className="meeting-timeline-row" key={slot.hourLabel}>
-                  <span>{slot.hourLabel}</span>
-                  <div>
-                    {slot.bookings.length === 0 ? (
-                      <small>Open</small>
-                    ) : (
-                      slot.bookings.map((booking) => (
-                        <b key={booking.id}>{booking.roomName}</b>
-                      ))
-                    )}
-                  </div>
+
+            <div className="meeting-week-grid">
+              <div className="meeting-week-corner" />
+              {weekDays.map((day) => (
+                <button
+                  key={toDateKey(day)}
+                  className="meeting-week-day-header"
+                  type="button"
+                  aria-pressed={toDateKey(day) === meetingDate}
+                  onClick={() => setMeetingDate(toDateKey(day))}
+                >
+                  <span>{formatWeekday(day)}</span>
+                  <strong>{formatShortDate(day)}</strong>
+                </button>
+              ))}
+
+              {workdayHours.map((hour) => (
+                <div
+                  className="meeting-hour-label"
+                  key={`hour-${hour}`}
+                  style={{ gridRow: hour - calendarHourStart + 2 }}
+                >
+                  {hour === 12 ? "12 PM" : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
                 </div>
-              )) ?? null}
-            </div>
-          </section>
+              ))}
 
-          <section className="history-panel">
-            <div className="history-header">
-              <span>Calendar cards</span>
-              <strong>{bookings.length}</strong>
-            </div>
-            <div className="meeting-booking-list">
-              {bookings.map((booking) => (
-                <article className="meeting-booking-card" key={booking.id}>
-                  <div>
+              {weekDays.map((day, dayIndex) => (
+                <div
+                  className="meeting-day-column"
+                  key={`column-${toDateKey(day)}`}
+                  style={{ gridColumn: dayIndex + 2 }}
+                />
+              ))}
+
+              {visibleBookings.map((booking) => {
+                const dayIndex = weekDays.findIndex((day) => toDateKey(day) === booking.start.slice(0, 10));
+
+                if (dayIndex < 0) {
+                  return null;
+                }
+
+                return (
+                  <article
+                    className={`meeting-outlook-event room-${booking.roomId}`}
+                    key={booking.id}
+                    style={{
+                      top: `${getBookingTop(booking.start)}px`,
+                      left: getBookingLeft(dayIndex),
+                      width: getBookingWidth(),
+                      height: `${getBookingHeight(booking.start, booking.end)}px`,
+                    }}
+                    title={`${booking.title} • ${booking.roomName}`}
+                  >
                     <strong>{booking.title}</strong>
                     <span>
                       {formatBookingTime(booking.start)} - {formatBookingTime(booking.end)}
                     </span>
-                  </div>
-                  <small>{booking.roomName}</small>
-                  <p>{booking.owner} • {booking.purpose}</p>
-                </article>
-              ))}
+                    <small>{booking.roomName}</small>
+                  </article>
+                );
+              })}
             </div>
           </section>
         </div>

@@ -135,6 +135,7 @@ Route: `http://127.0.0.1:5173/#public-holidays`
 - Meeting Room
   - Added as a left-side primary navigation item named `Meeting Room`.
   - Mock planner calendar for Phuket, Pattaya, Singha, and Chang rooms.
+  - Uses an Outlook-like Work Week UI with a mini calendar, room checkbox list, week toolbar, time grid, and positioned meeting blocks.
   - Supports date, start time, duration, room, owner, and purpose inputs.
   - Calculates availability, conflicts, tight windows, recommended room, timeline, and calendar cards in `compute-worker`.
   - Uses `planner:meeting-rooms` in `compute-worker`.

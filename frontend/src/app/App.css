@@ -3387,6 +3387,305 @@ a {
   gap: 14px;
 }
 
+.meeting-outlook-shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: 760px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-control), transparent 8%), transparent),
+    var(--surface-panel);
+}
+
+.meeting-outlook-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  border-right: 1px solid var(--border-subtle);
+  background:
+    radial-gradient(circle at 0% 0%, var(--accent-soft), transparent 40%),
+    color-mix(in srgb, var(--surface-nav), transparent 8%);
+  padding: 14px;
+}
+
+.meeting-mini-calendar {
+  display: grid;
+  gap: 10px;
+}
+
+.meeting-mini-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.meeting-mini-weekdays,
+.meeting-mini-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.meeting-mini-weekdays span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.meeting-mini-days button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 25px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.meeting-mini-days button:hover,
+.meeting-mini-days button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent), transparent 35%);
+  color: #03111f;
+}
+
+.meeting-mini-days button.is-muted {
+  color: color-mix(in srgb, var(--text-muted), transparent 45%);
+}
+
+.meeting-calendar-list {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 14px;
+}
+
+.meeting-calendar-list .eyebrow {
+  margin: 0;
+}
+
+.meeting-calendar-list label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.meeting-calendar-list input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+.meeting-outlook-calendar {
+  min-width: 0;
+  overflow: auto;
+}
+
+.meeting-calendar-toolbar {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  min-width: 880px;
+  border-bottom: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--surface-control), transparent 6%), transparent),
+    color-mix(in srgb, var(--surface-panel), transparent 2%);
+  padding: 10px;
+}
+
+.meeting-calendar-toolbar strong {
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.meeting-calendar-toolbar > span {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 10px;
+}
+
+.meeting-calendar-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.meeting-calendar-actions button {
+  min-height: 28px;
+  min-width: 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 4px 9px;
+}
+
+.meeting-calendar-actions button:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 0 18px var(--glow-cyan);
+}
+
+.meeting-week-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px repeat(5, minmax(164px, 1fr));
+  grid-template-rows: 76px repeat(15, 46px);
+  min-width: 880px;
+  min-height: 766px;
+  background:
+    linear-gradient(to right, transparent 57px, var(--border-subtle) 58px, transparent 59px),
+    color-mix(in srgb, var(--surface-panel), transparent 4%);
+}
+
+.meeting-week-corner {
+  position: sticky;
+  z-index: 2;
+  left: 0;
+  grid-column: 1;
+  grid-row: 1;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-control);
+}
+
+.meeting-week-day-header {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent-soft), transparent 28%), transparent 60%),
+    var(--surface-control);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  padding: 10px;
+  text-align: left;
+}
+
+.meeting-week-day-header:hover,
+.meeting-week-day-header[aria-pressed="true"] {
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--glow-cyan), transparent 15%), transparent 65%),
+    var(--surface-active);
+}
+
+.meeting-week-day-header span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.meeting-week-day-header strong {
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.meeting-hour-label {
+  position: sticky;
+  z-index: 2;
+  left: 0;
+  display: grid;
+  align-items: start;
+  justify-items: end;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-control), transparent 4%);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 7px;
+}
+
+.meeting-day-column {
+  grid-row: 2 / -1;
+  border-right: 1px solid var(--border-subtle);
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 45px,
+      color-mix(in srgb, var(--border-subtle), transparent 20%) 46px
+    );
+}
+
+.meeting-outlook-event {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  overflow: hidden;
+  border-left: 4px solid color-mix(in srgb, var(--accent), #0ea5e9 35%);
+  border-radius: 4px;
+  background:
+    linear-gradient(135deg, rgba(125, 211, 252, 0.86), rgba(14, 165, 233, 0.64)),
+    #38bdf8;
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.18);
+  color: #04101f;
+  padding: 5px 7px;
+}
+
+.meeting-outlook-event strong {
+  font-size: 12px;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meeting-outlook-event span,
+.meeting-outlook-event small {
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.1;
+  opacity: 0.82;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meeting-outlook-event.room-phuket {
+  border-left-color: #22d3ee;
+}
+
+.meeting-outlook-event.room-pattaya {
+  border-left-color: #60a5fa;
+}
+
+.meeting-outlook-event.room-singha {
+  border-left-color: #facc15;
+}
+
+.meeting-outlook-event.room-chang {
+  border-left-color: #34d399;
+}
+
 .meeting-timeline {
   display: grid;
   gap: 8px;
