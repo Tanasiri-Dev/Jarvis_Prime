@@ -177,7 +177,7 @@ Deliverables:
 - Initial languages: English, Thai, and Simplified Chinese. (Foundation implemented)
 - Locale-aware date, time, number, and WorkWeek labels.
 - Persisted user language preference. (Foundation implemented with `jarvis-prime.locale`)
-- Translation coverage for navigation, tool labels, status labels, and common validation messages. (Shell and panel-level coverage in progress)
+- Translation coverage for navigation, tool labels, status labels, and common validation messages. (Shell, panel-level labels, and first detailed Engineering Tools pass in progress)
 
 Acceptance:
 

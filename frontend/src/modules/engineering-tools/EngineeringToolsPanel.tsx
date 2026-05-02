@@ -1785,15 +1785,15 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
         <article className="panel tool-card active-tool">
           <div className="tool-card-header">
             <div>
-              <p className="eyebrow">Time and shift</p>
-              <h3>WorkWeek / Shift Calculator</h3>
+              <p className="eyebrow">{t("engineering.common.timeAndShift")}</p>
+              <h3>{t("engineering.workweek.title")}</h3>
             </div>
             <StatusChip status={status} workerHost={workerHost} />
           </div>
 
           <div className="tool-form">
             <label>
-              <span>Date and time</span>
+              <span>{t("engineering.workweek.dateTime")}</span>
               <input
                 type="datetime-local"
                 value={timestamp}
@@ -1802,7 +1802,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>Day shift start</span>
+              <span>{t("engineering.workweek.dayShiftStart")}</span>
               <input
                 max={23}
                 min={0}
@@ -1813,7 +1813,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>Shift length</span>
+              <span>{t("engineering.workweek.shiftLength")}</span>
               <input
                 max={24}
                 min={1}
@@ -1828,30 +1828,30 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
 
           <div className="workweek-overview" aria-live="polite">
             <section className="workweek-number-card">
-              <span>WorkWeek</span>
+              <span>{t("engineering.tool.workweek")}</span>
               <strong>{result ? String(result.isoWeek).padStart(2, "0") : "--"}</strong>
               <p>{workweekCalendar.selectedDateLabel}</p>
-              <small>Weeks remaining this year: {workweekCalendar.weeksRemaining}</small>
+              <small>{t("engineering.workweek.weeksRemaining")}: {workweekCalendar.weeksRemaining}</small>
             </section>
 
             <section className="workweek-calendar-card">
               <div className="workweek-calendar-header">
                 <button
-                  aria-label="Previous month"
+                  aria-label={t("engineering.workweek.previousMonth")}
                   className="month-nav-button month-nav-previous"
                   type="button"
                   onClick={() => setWorkweekMonthOffset((current) => current - 1)}
                 />
                 <span>{workweekCalendar.monthLabel}</span>
                 <button
-                  aria-label="Next month"
+                  aria-label={t("engineering.workweek.nextMonth")}
                   className="month-nav-button month-nav-next"
                   type="button"
                   onClick={() => setWorkweekMonthOffset((current) => current + 1)}
                 />
                 <strong>WW{String(workweekCalendar.selectedWeek).padStart(2, "0")}</strong>
               </div>
-              <div className="workweek-calendar-grid" aria-label="Monthly calendar with WorkWeek">
+              <div className="workweek-calendar-grid" aria-label={t("engineering.workweek.calendarLabel")}>
                 {["#", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
                   <span className="workweek-calendar-heading" key={label}>
                     {label}
@@ -1879,26 +1879,26 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
                 ))}
               </div>
               <div className="workweek-shift-summary">
-                <span>Year: {result?.isoYear ?? "--"}</span>
-                <span>Shift: {result?.shiftName ?? "--"}</span>
-                <span>Shift date: {result?.shiftDate ?? "--"}</span>
-                <span>Day: {result?.dayName ?? "--"}</span>
+                <span>{t("engineering.workweek.year")}: {result?.isoYear ?? "--"}</span>
+                <span>{t("engineering.workweek.shift")}: {result?.shiftName ?? "--"}</span>
+                <span>{t("engineering.workweek.shiftDate")}: {result?.shiftDate ?? "--"}</span>
+                <span>{t("engineering.workweek.day")}: {result?.dayName ?? "--"}</span>
               </div>
             </section>
           </div>
 
-          <section className="week-range-converter" aria-label="WorkWeek to date range converter">
+          <section className="week-range-converter" aria-label={t("engineering.weekRange.title")}>
             <div className="week-range-header">
               <div>
-                <p className="eyebrow">Week to date range</p>
-                <h4>Convert WorkWeek to calendar dates</h4>
+                <p className="eyebrow">{t("engineering.weekRange.label")}</p>
+                <h4>{t("engineering.weekRange.title")}</h4>
               </div>
               <StatusChip status={weekRangeStatus} workerHost={workerHost} />
             </div>
 
             <div className="tool-form week-range-form">
               <label>
-                <span>ISO year</span>
+                <span>{t("engineering.weekRange.isoYear")}</span>
                 <input
                   min={1900}
                   type="number"
@@ -1908,7 +1908,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
               </label>
 
               <label>
-                <span>WorkWeek</span>
+                <span>{t("engineering.tool.workweek")}</span>
                 <input
                   max={53}
                   min={1}
@@ -1931,7 +1931,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
                   setWeekRangeWeek(result.isoWeek);
                 }}
               >
-                Use selected date
+                {t("engineering.weekRange.useSelected")}
               </button>
             </div>
 
@@ -1940,7 +1940,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             <div className="week-range-output" aria-live="polite">
               <div className="week-range-summary">
                 <span>{weekRangeResult?.isoWeekLabel ?? "----"}</span>
-                <strong>{weekRangeResult?.rangeLabel ?? "Select year and WorkWeek"}</strong>
+                <strong>{weekRangeResult?.rangeLabel ?? t("engineering.weekRange.empty")}</strong>
               </div>
               <div className="week-range-days">
                 {weekRangeResult?.days.map((day) => (
@@ -1962,15 +1962,15 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
         <article className="panel tool-card duration-tool">
           <div className="tool-card-header">
             <div>
-              <p className="eyebrow">Time and shift</p>
-              <h3>Duration Calculator</h3>
+              <p className="eyebrow">{t("engineering.common.timeAndShift")}</p>
+              <h3>{t("engineering.duration.title")}</h3>
             </div>
             <StatusChip status={durationStatus} workerHost={workerHost} />
           </div>
 
           <div className="tool-form duration-form">
             <label>
-              <span>Start</span>
+              <span>{t("engineering.common.start")}</span>
               <input
                 type="datetime-local"
                 value={durationStart}
@@ -1979,7 +1979,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>End</span>
+              <span>{t("engineering.common.end")}</span>
               <input
                 type="datetime-local"
                 value={durationEnd}
@@ -1992,16 +1992,16 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
 
           <div className="result-grid duration-result-grid" aria-live="polite">
             <div className="result-tile emphasis-tile">
-              <span>Net duration</span>
+              <span>{t("engineering.duration.net")}</span>
               <strong>{durationResult?.netLabel ?? "--"}</strong>
             </div>
             <div className="result-tile">
-              <span>Gross duration</span>
+              <span>{t("engineering.duration.gross")}</span>
               <strong>{durationResult?.grossLabel ?? "--"}</strong>
             </div>
             <div className="result-tile break-minute-tile">
               <label>
-                <span>Break minutes</span>
+                <span>{t("engineering.duration.breakMinutes")}</span>
                 <input
                   min={0}
                   type="number"
@@ -2012,14 +2012,14 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
               <strong>{durationResult?.breakLabel ?? "--"}</strong>
             </div>
             <div className="result-tile">
-              <span>Crosses midnight</span>
-              <strong>{durationResult?.crossesMidnight ? "Yes" : "No"}</strong>
+              <span>{t("engineering.duration.crossesMidnight")}</span>
+              <strong>{durationResult?.crossesMidnight ? t("engineering.common.yes") : t("engineering.common.no")}</strong>
             </div>
           </div>
 
           <div className="duration-summary">
-            <span>Start: {durationResult?.startLabel ?? "--"}</span>
-            <span>End: {durationResult?.endLabel ?? "--"}</span>
+            <span>{t("engineering.duration.startLabel")}: {durationResult?.startLabel ?? "--"}</span>
+            <span>{t("engineering.duration.endLabel")}: {durationResult?.endLabel ?? "--"}</span>
           </div>
         </article>
         ) : null}
@@ -2429,8 +2429,8 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
         <article ref={stopwatchToolRef} className="panel tool-card stopwatch-tool">
           <div className="tool-card-header">
             <div>
-              <p className="eyebrow">Manufacturing</p>
-              <h3>Process Stopwatch</h3>
+              <p className="eyebrow">{t("engineering.common.manufacturing")}</p>
+              <h3>{t("engineering.stopwatch.title")}</h3>
             </div>
             <StatusChip
               status={isStopwatchRunning ? "running" : "ready"}
@@ -2439,11 +2439,11 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
           </div>
 
           <div className="stopwatch-face" aria-live="polite">
-            <span>Elapsed process time</span>
+            <span>{t("engineering.stopwatch.elapsed")}</span>
             <strong>{formatDuration(elapsedMs)}</strong>
           </div>
 
-          <div className="stopwatch-actions" aria-label="Stopwatch controls">
+          <div className="stopwatch-actions" aria-label={t("engineering.stopwatch.controls")}>
             <div className="export-control-group">
               <RoundActionButton
                 disabled={stopwatchHistory.length === 0}
@@ -2461,22 +2461,22 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </div>
           </div>
 
-          <div className="shortcut-helper" aria-label="Stopwatch keyboard shortcuts">
+          <div className="shortcut-helper" aria-label={t("engineering.stopwatch.shortcuts")}>
             <div>
-              <span>Shortcuts</span>
-              <p>Use the keyboard while this tool is active. Lap trend compares each lap with the previous one.</p>
+              <span>{t("engineering.stopwatch.shortcuts")}</span>
+              <p>{t("engineering.stopwatch.shortcutHelp")}</p>
             </div>
             <div className="shortcut-key-grid">
-              <span><kbd>Space</kbd> Start / Stop</span>
-              <span><kbd>L</kbd> Lap</span>
-              <span><kbd>R</kbd> Reset</span>
-              <span><kbd>F</kbd> Full screen</span>
+              <span><kbd>Space</kbd> {t("engineering.stopwatch.startStop")}</span>
+              <span><kbd>L</kbd> {t("engineering.stopwatch.lap")}</span>
+              <span><kbd>R</kbd> {t("engineering.stopwatch.reset")}</span>
+              <span><kbd>F</kbd> {t("engineering.stopwatch.fullScreen")}</span>
             </div>
           </div>
 
           <div className="history-panel">
             <div className="history-header">
-              <span>History</span>
+              <span>{t("engineering.stopwatch.history")}</span>
               <strong>{stopwatchHistory.length}</strong>
             </div>
             {stopwatchHistory.length > 0 ? (
@@ -2484,11 +2484,11 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
                 <table className="history-table">
                   <thead>
                     <tr>
-                      <th>Lap</th>
-                      <th>Timestamp</th>
-                      <th>Lap time</th>
-                      <th>Total</th>
-                      <th>Trend</th>
+                      <th>{t("engineering.stopwatch.lap")}</th>
+                      <th>{t("engineering.stopwatch.timestamp")}</th>
+                      <th>{t("engineering.stopwatch.lapTime")}</th>
+                      <th>{t("engineering.stopwatch.total")}</th>
+                      <th>{t("engineering.stopwatch.trend")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2513,7 +2513,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
                 </table>
               </div>
             ) : (
-              <p className="empty-history">No laps recorded yet.</p>
+              <p className="empty-history">{t("engineering.stopwatch.empty")}</p>
             )}
           </div>
         </article>
@@ -2777,15 +2777,15 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
         <article className="panel tool-card alarm-tool">
           <div className="tool-card-header">
             <div>
-              <p className="eyebrow">Factory tools</p>
-              <h3>Alarm Decoder</h3>
+              <p className="eyebrow">{t("engineering.common.factoryTools")}</p>
+              <h3>{t("engineering.alarm.title")}</h3>
             </div>
             <StatusChip status={alarmStatus} workerHost={workerHost} />
           </div>
 
           <div className="alarm-layout">
             <label className="alarm-input-panel">
-              <span>Raw alarm message</span>
+              <span>{t("engineering.alarm.raw")}</span>
               <textarea
                 value={alarmRaw}
                 onChange={(event) => setAlarmRaw(event.target.value)}
@@ -2797,8 +2797,14 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
               <span className={`alarm-severity alarm-severity-${alarmResult?.severity ?? "unknown"}`}>
                 {alarmResult?.severity ?? "unknown"}
               </span>
-              <strong>{alarmResult?.state === "clear" ? "Cleared" : alarmResult?.state === "set" ? "Active" : "Unknown"}</strong>
-              <p>{alarmResult?.summary ?? "Paste an alarm payload to decode."}</p>
+              <strong>
+                {alarmResult?.state === "clear"
+                  ? t("engineering.alarm.cleared")
+                  : alarmResult?.state === "set"
+                    ? t("engineering.alarm.active")
+                    : t("engineering.alarm.unknown")}
+              </strong>
+              <p>{alarmResult?.summary ?? t("engineering.alarm.placeholder")}</p>
             </div>
           </div>
 
@@ -2814,12 +2820,12 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
               <strong>{alarmResult?.alarmId ?? "--"}</strong>
             </div>
             <div className="result-tile">
-              <span>Category</span>
+              <span>{t("engineering.common.category")}</span>
               <strong>{alarmResult?.categoryCode ?? "--"}</strong>
               <small>{alarmResult?.categoryLabel ?? "--"}</small>
             </div>
             <div className="result-tile">
-              <span>Protocol</span>
+              <span>{t("engineering.alarm.protocol")}</span>
               <strong>{alarmResult?.protocol ?? "--"}</strong>
             </div>
           </div>
@@ -2827,7 +2833,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
           <div className="alarm-detail-grid">
             <section className="history-panel">
               <div className="history-header">
-                <span>Decoded fields</span>
+                <span>{t("engineering.alarm.decodedFields")}</span>
                 <strong>{alarmResult?.parsedFields.length ?? 0}</strong>
               </div>
               <div className="alarm-field-list">
@@ -2842,7 +2848,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
 
             <section className="history-panel">
               <div className="history-header">
-                <span>Recommended actions</span>
+                <span>{t("engineering.common.recommendedActions")}</span>
                 <strong>{alarmResult?.recommendedActions.length ?? 0}</strong>
               </div>
               <ol className="alarm-action-list">
@@ -2859,15 +2865,15 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
         <article className="panel tool-card unit-tool">
           <div className="tool-card-header">
             <div>
-              <p className="eyebrow">Engineering math</p>
-              <h3>Unit Converter</h3>
+              <p className="eyebrow">{t("engineering.common.engineeringMath")}</p>
+              <h3>{t("engineering.unit.title")}</h3>
             </div>
             <StatusChip status={unitStatus} workerHost={workerHost} />
           </div>
 
           <div className="tool-form unit-form">
             <label>
-              <span>Category</span>
+              <span>{t("engineering.common.category")}</span>
               <select
                 value={unitCategory}
                 onChange={(event) => {
@@ -2888,7 +2894,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>Value</span>
+              <span>{t("engineering.unit.value")}</span>
               <input
                 type="number"
                 value={unitInputValue}
@@ -2897,7 +2903,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>From</span>
+              <span>{t("engineering.common.from")}</span>
               <select value={unitFrom} onChange={(event) => setUnitFrom(event.target.value)}>
                 {unitOptions.map((unit) => (
                   <option key={unit.id} value={unit.id}>
@@ -2908,7 +2914,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>To</span>
+              <span>{t("engineering.common.to")}</span>
               <select value={unitTo} onChange={(event) => setUnitTo(event.target.value)}>
                 {unitOptions.map((unit) => (
                   <option key={unit.id} value={unit.id}>
@@ -2925,7 +2931,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             <div>
               <span>{unitCatalog[unitCategory].label}</span>
               <strong>{unitResult?.outputLabel ?? "--"}</strong>
-              <p>{unitResult?.inputLabel ?? "--"} converts to</p>
+              <p>{unitResult?.inputLabel ?? "--"} {t("engineering.unit.convertsTo")}</p>
             </div>
             <button
               className="swap-unit-button"
@@ -2935,13 +2941,13 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
                 setUnitTo(unitFrom);
               }}
             >
-              Swap
+              {t("engineering.unit.swap")}
             </button>
           </div>
 
           <div className="history-panel">
             <div className="history-header">
-              <span>Formula</span>
+              <span>{t("engineering.unit.formula")}</span>
               <strong>{unitResult?.category ?? unitCategory}</strong>
             </div>
             <p className="unit-formula">{unitResult?.formula ?? "--"}</p>
@@ -3216,15 +3222,15 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
         <article className="panel tool-card oee-tool">
           <div className="tool-card-header">
             <div>
-              <p className="eyebrow">Manufacturing</p>
-              <h3>OEE / Downtime Calculator</h3>
+              <p className="eyebrow">{t("engineering.common.manufacturing")}</p>
+              <h3>{t("engineering.oee.title")}</h3>
             </div>
             <StatusChip status={oeeStatus} workerHost={workerHost} />
           </div>
 
           <div className="tool-form oee-form">
             <label>
-              <span>Planned minutes</span>
+              <span>{t("engineering.oee.plannedMinutes")}</span>
               <input
                 min="0"
                 type="number"
@@ -3234,7 +3240,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>Downtime minutes</span>
+              <span>{t("engineering.oee.downtimeMinutes")}</span>
               <input
                 min="0"
                 type="number"
@@ -3244,7 +3250,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>Target UPH</span>
+              <span>{t("engineering.oee.targetUph")}</span>
               <input
                 min="0"
                 type="number"
@@ -3254,7 +3260,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>Total count</span>
+              <span>{t("engineering.oee.totalCount")}</span>
               <input
                 min="0"
                 type="number"
@@ -3264,7 +3270,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label>
-              <span>Good count</span>
+              <span>{t("engineering.oee.goodCount")}</span>
               <input
                 min="0"
                 type="number"
@@ -3274,7 +3280,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
             </label>
 
             <label className="oee-reason-field">
-              <span>Downtime reason</span>
+              <span>{t("engineering.oee.downtimeReason")}</span>
               <input
                 type="text"
                 value={oeeDowntimeReason}
@@ -3286,9 +3292,9 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
           {oeeError ? <div className="error-note">{oeeError}</div> : null}
 
           <div className={`oee-hero oee-status-${oeeResult?.status ?? "info"}`} aria-live="polite">
-            <span>Overall equipment effectiveness</span>
+            <span>{t("engineering.oee.effectiveness")}</span>
             <strong>{oeeResult ? oeeResult.metrics[0].value : "--"}</strong>
-            <p>{oeeResult?.summary ?? "Enter production window and output data to calculate OEE."}</p>
+            <p>{oeeResult?.summary ?? t("engineering.oee.empty")}</p>
           </div>
 
           <div className="yield-metric-grid">
@@ -3303,20 +3309,20 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
           <div className="alarm-detail-grid">
             <section className="history-panel">
               <div className="history-header">
-                <span>Loss summary</span>
+                <span>{t("engineering.oee.lossSummary")}</span>
                 <strong>{oeeResult?.status ?? "--"}</strong>
               </div>
               <div className="yield-reconcile-list">
                 <div>
-                  <span>Run minutes</span>
+                  <span>{t("engineering.oee.runMinutes")}</span>
                   <strong>{oeeResult ? `${oeeResult.runMinutes} min` : "--"}</strong>
                 </div>
                 <div>
-                  <span>Reject count</span>
+                  <span>{t("engineering.oee.rejectCount")}</span>
                   <strong>{oeeResult?.rejectCount ?? "--"}</strong>
                 </div>
                 <div>
-                  <span>Top downtime</span>
+                  <span>{t("engineering.oee.topDowntime")}</span>
                   <strong>{oeeResult?.downtimeReason ?? "--"}</strong>
                 </div>
               </div>
@@ -3324,7 +3330,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
 
             <section className="history-panel">
               <div className="history-header">
-                <span>Recommended actions</span>
+                <span>{t("engineering.common.recommendedActions")}</span>
                 <strong>{oeeResult?.recommendedActions.length ?? 0}</strong>
               </div>
               <ol className="alarm-action-list">
@@ -3341,15 +3347,15 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
         <article className="panel tool-card spc-tool">
           <div className="tool-card-header">
             <div>
-              <p className="eyebrow">Quality</p>
-              <h3>SPC Quick Helper</h3>
+              <p className="eyebrow">{t("engineering.common.quality")}</p>
+              <h3>{t("engineering.spc.title")}</h3>
             </div>
             <StatusChip status={spcStatus} workerHost={workerHost} />
           </div>
 
           <div className="spc-form">
             <label className="spc-sample-field">
-              <span>Sample values</span>
+              <span>{t("engineering.spc.sampleValues")}</span>
               <textarea
                 rows={5}
                 value={spcSampleValues}
@@ -3377,7 +3383,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
               </label>
 
               <label>
-                <span>Target</span>
+                <span>{t("engineering.common.target")}</span>
                 <input
                   type="number"
                   value={spcTarget}
@@ -3386,7 +3392,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
               </label>
 
               <label>
-                <span>Subgroup</span>
+                <span>{t("engineering.spc.subgroup")}</span>
                 <input
                   min="1"
                   type="number"
@@ -3400,9 +3406,9 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
           {spcError ? <div className="error-note">{spcError}</div> : null}
 
           <div className={`spc-hero spc-status-${spcResult?.status ?? "info"}`} aria-live="polite">
-            <span>Process capability</span>
+            <span>{t("engineering.spc.capability")}</span>
             <strong>{spcResult ? `Cpk ${spcResult.metrics[0].value}` : "--"}</strong>
-            <p>{spcResult?.summary ?? "Enter sample values and limits to calculate capability."}</p>
+            <p>{spcResult?.summary ?? t("engineering.spc.empty")}</p>
           </div>
 
           <div className="yield-metric-grid">
@@ -3417,12 +3423,12 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
           <div className="alarm-detail-grid">
             <section className="history-panel">
               <div className="history-header">
-                <span>Spec summary</span>
+                <span>{t("engineering.spc.specSummary")}</span>
                 <strong>{spcResult?.status ?? "--"}</strong>
               </div>
               <div className="yield-reconcile-list">
                 <div>
-                  <span>Limits</span>
+                  <span>{t("engineering.spc.limits")}</span>
                   <strong>
                     {spcResult
                       ? `${spcResult.lowerSpecLimit} to ${spcResult.upperSpecLimit}`
@@ -3430,11 +3436,11 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
                   </strong>
                 </div>
                 <div>
-                  <span>Min / max</span>
+                  <span>{t("engineering.spc.minMax")}</span>
                   <strong>{spcResult ? `${spcResult.min} / ${spcResult.max}` : "--"}</strong>
                 </div>
                 <div>
-                  <span>Target</span>
+                  <span>{t("engineering.common.target")}</span>
                   <strong>{spcResult?.targetValue ?? "--"}</strong>
                 </div>
               </div>
@@ -3442,7 +3448,7 @@ export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: Engine
 
             <section className="history-panel">
               <div className="history-header">
-                <span>Recommended actions</span>
+                <span>{t("engineering.common.recommendedActions")}</span>
                 <strong>{spcResult?.recommendedActions.length ?? 0}</strong>
               </div>
               <ol className="alarm-action-list">
