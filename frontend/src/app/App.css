@@ -1172,6 +1172,7 @@ a {
   align-self: end;
   display: flex !important;
   gap: 10px !important;
+  justify-content: flex-start;
   min-height: 42px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
@@ -1182,6 +1183,17 @@ a {
 
 .inline-toggle input {
   accent-color: var(--accent-strong);
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.inline-toggle span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .time-utility-result {
