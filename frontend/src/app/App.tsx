@@ -183,10 +183,7 @@ export function App() {
               <article className="panel focus-panel">
                 <p className="eyebrow">Today</p>
                 <h2>Build the reliable core first.</h2>
-                <p>
-                  React is mounted as the app shell, while worker-owned rendering proves the
-                  parallel architecture from the first screen.
-                </p>
+                <p>React shell, worker rendering, and clean module boundaries.</p>
               </article>
 
               <article className="panel metric-panel">

@@ -1211,10 +1211,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       <article className="panel tools-intro">
         <p className="eyebrow">Engineering Tools</p>
         <h2>Fast utilities for daily engineering work.</h2>
-        <p>
-          This first tool runs through the compute worker, keeping the UI responsive while the
-          tool library grows into file parsing, conversion, and manufacturing calculators.
-        </p>
+        <p>Worker-backed tools for time, conversion, manufacturing, and diagnostics.</p>
       </article>
 
       <div className="tools-grid">
