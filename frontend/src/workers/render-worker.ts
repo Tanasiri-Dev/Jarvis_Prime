@@ -2,6 +2,10 @@ import type {
   RenderInitPayload,
   RenderResizePayload,
   RenderStatsPayload,
+  RenderStatusDisposePayload,
+  RenderStatusInitPayload,
+  RenderStatusName,
+  RenderStatusUpdatePayload,
   RenderThemePayload,
   WorkerEnvelope,
   WorkerNotification,
@@ -92,6 +96,93 @@ const renderPalettes: Record<RenderThemeName, RenderPalette> = {
 };
 
 let activeTheme: RenderThemeName = "dark";
+
+type StatusCanvasState = {
+  canvas: OffscreenCanvas;
+  context: OffscreenCanvasRenderingContext2D;
+  width: number;
+  height: number;
+  status: RenderStatusName;
+};
+
+const statusCanvases = new Map<string, StatusCanvasState>();
+
+const statusPalettes: Record<RenderStatusName, { fill: string; glow: string; symbol: string }> = {
+  idle: { fill: "#94a3b8", glow: "rgba(148, 163, 184, 0.38)", symbol: "" },
+  running: { fill: "#38bdf8", glow: "rgba(56, 189, 248, 0.58)", symbol: "" },
+  ready: { fill: "#22c55e", glow: "rgba(34, 197, 94, 0.58)", symbol: "✓" },
+  online: { fill: "#22c55e", glow: "rgba(34, 197, 94, 0.58)", symbol: "✓" },
+  error: { fill: "#fb7185", glow: "rgba(251, 113, 133, 0.56)", symbol: "!" },
+};
+
+const drawStatusCanvas = (state: StatusCanvasState): void => {
+  const { context: ctx } = state;
+  const palette = statusPalettes[state.status] ?? statusPalettes.idle;
+  const centerX = state.width / 2;
+  const centerY = state.height / 2;
+  const radius = Math.max(3, Math.min(state.width, state.height) * 0.26);
+
+  ctx.clearRect(0, 0, state.width, state.height);
+
+  const glow = ctx.createRadialGradient(centerX, centerY, 1, centerX, centerY, radius * 2.2);
+  glow.addColorStop(0, palette.glow);
+  glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius * 2.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = palette.fill;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (palette.symbol) {
+    ctx.fillStyle = "#06101c";
+    ctx.font = `900 ${Math.max(8, radius * 2.1)}px Inter, system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(palette.symbol, centerX, centerY + 0.5);
+  }
+};
+
+const initStatusCanvas = (payload: RenderStatusInitPayload): void => {
+  const maybeContext = payload.canvas.getContext("2d");
+
+  if (!maybeContext) {
+    throw new Error("Unable to create status OffscreenCanvas 2D context.");
+  }
+
+  const dpr = Math.max(1, payload.devicePixelRatio || 1);
+  const width = Math.max(1, payload.width);
+  const height = Math.max(1, payload.height);
+
+  payload.canvas.width = Math.floor(width * dpr);
+  payload.canvas.height = Math.floor(height * dpr);
+  maybeContext.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const state = {
+    canvas: payload.canvas,
+    context: maybeContext,
+    width,
+    height,
+    status: payload.status,
+  };
+
+  statusCanvases.set(payload.id, state);
+  drawStatusCanvas(state);
+};
+
+const updateStatusCanvas = (payload: RenderStatusUpdatePayload): void => {
+  const state = statusCanvases.get(payload.id);
+
+  if (!state) {
+    return;
+  }
+
+  state.status = payload.status;
+  drawStatusCanvas(state);
+};
 
 const requestFrame = (callback: FrameRequestCallback): void => {
   if (scope.requestAnimationFrame) {
@@ -274,6 +365,25 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
       activeTheme = (message.payload as RenderThemePayload).theme;
       draw(performance.now());
       scope.postMessage({ id: message.id, type: "render:theme-set", payload: { ok: true } });
+      return;
+    }
+
+    if (message.type === "status:init") {
+      initStatusCanvas(message.payload as RenderStatusInitPayload);
+      scope.postMessage({ id: message.id, type: "status:ready", payload: { ok: true } });
+      return;
+    }
+
+    if (message.type === "status:update") {
+      updateStatusCanvas(message.payload as RenderStatusUpdatePayload);
+      scope.postMessage({ id: message.id, type: "status:updated", payload: { ok: true } });
+      return;
+    }
+
+    if (message.type === "status:dispose") {
+      const payload = message.payload as RenderStatusDisposePayload;
+      statusCanvases.delete(payload.id);
+      scope.postMessage({ id: message.id, type: "status:disposed", payload: { ok: true } });
       return;
     }
 

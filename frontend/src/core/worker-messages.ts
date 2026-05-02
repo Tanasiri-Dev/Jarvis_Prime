@@ -197,3 +197,23 @@ export interface RenderStatsPayload {
   width: number;
   height: number;
 }
+
+export type RenderStatusName = "idle" | "running" | "ready" | "online" | "error";
+
+export interface RenderStatusInitPayload {
+  id: string;
+  canvas: OffscreenCanvas;
+  width: number;
+  height: number;
+  devicePixelRatio: number;
+  status: RenderStatusName;
+}
+
+export interface RenderStatusUpdatePayload {
+  id: string;
+  status: RenderStatusName;
+}
+
+export interface RenderStatusDisposePayload {
+  id: string;
+}

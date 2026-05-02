@@ -104,6 +104,7 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
 - Default dark theme follows the `CODEX.md` crypto-native glassmorphism direction: dark glass panels, luminous borders, sticky glass top bar, and stronger glow on hover.
 - Page header titles use gradient text, and the top toolbar uses a pure liquid glass style with blur, saturation, inner highlights, and soft reflection.
 - Theme styling is tokenized in `frontend/src/app/App.css`.
+- Tool status chips use small OffscreenCanvas lights rendered by `render-worker`; `running` chips add a passing light scan, while `ready/online` use a check-style status light.
 - Tool Library is on the right and selects one active tool at a time.
 - Tool Library groups are ordered: Week, Day, Time, Unit Convert, Decoder.
 - Tool Library has an independent constrained scroll container and reveals its vertical scrollbar only on hover/focus.

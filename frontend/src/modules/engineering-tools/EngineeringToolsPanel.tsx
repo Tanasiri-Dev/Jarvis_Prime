@@ -4,6 +4,7 @@ import type {
   AlarmDecodeResultPayload,
   DurationResultPayload,
   FactoryClockResultPayload,
+  RenderStatusName,
   TimezoneConversionResultPayload,
   TimezoneTargetConfig,
   UnitConverterCategory,
@@ -277,6 +278,12 @@ type RoundActionButtonProps = {
   onClick: () => void;
 };
 
+type StatusChipProps = {
+  label?: string;
+  status: RenderStatusName;
+  workerHost: WorkerHost;
+};
+
 function RoundActionButton({ disabled = false, model, onClick }: RoundActionButtonProps) {
   return (
     <button
@@ -288,6 +295,75 @@ function RoundActionButton({ disabled = false, model, onClick }: RoundActionButt
     >
       <span>{model.label}</span>
     </button>
+  );
+}
+
+function StatusChip({ label, status, workerHost }: StatusChipProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const idRef = useRef(`status-${crypto.randomUUID()}`);
+  const [isCanvasReady, setIsCanvasReady] = useState(false);
+  const displayLabel = label ?? status;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    if (!canvas || !("transferControlToOffscreen" in canvas)) {
+      return;
+    }
+
+    const offscreen = canvas.transferControlToOffscreen();
+    let isCurrent = true;
+
+    void workerHost
+      .post(
+        "render",
+        "status:init",
+        {
+          id: idRef.current,
+          canvas: offscreen,
+          width: 18,
+          height: 18,
+          devicePixelRatio: window.devicePixelRatio || 1,
+          status,
+        },
+        [offscreen],
+      )
+      .then(() => {
+        if (isCurrent) {
+          setIsCanvasReady(true);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isCurrent = false;
+      void workerHost
+        .post("render", "status:dispose", { id: idRef.current })
+        .catch(() => undefined);
+    };
+  }, [workerHost]);
+
+  useEffect(() => {
+    if (!isCanvasReady) {
+      return;
+    }
+
+    void workerHost
+      .post("render", "status:update", { id: idRef.current, status })
+      .catch(() => undefined);
+  }, [isCanvasReady, status, workerHost]);
+
+  return (
+    <span className={`status-chip status-${status}`} data-status={status}>
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className="status-canvas"
+        height={18}
+        width={18}
+      />
+      <span className="status-label">{displayLabel}</span>
+    </span>
   );
 }
 
@@ -1223,7 +1299,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Time and shift</p>
               <h3>WorkWeek / Shift Calculator</h3>
             </div>
-            <span className={`status-chip status-${status}`}>{status}</span>
+            <StatusChip status={status} workerHost={workerHost} />
           </div>
 
           <div className="tool-form">
@@ -1333,7 +1409,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Time and shift</p>
               <h3>Duration Calculator</h3>
             </div>
-            <span className={`status-chip status-${durationStatus}`}>{durationStatus}</span>
+            <StatusChip status={durationStatus} workerHost={workerHost} />
           </div>
 
           <div className="tool-form duration-form">
@@ -1399,7 +1475,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Time and shift</p>
               <h3>Timezone Converter</h3>
             </div>
-            <span className={`status-chip status-${timezoneStatus}`}>{timezoneStatus}</span>
+            <StatusChip status={timezoneStatus} workerHost={workerHost} />
           </div>
 
           <div className="timezone-topline" aria-live="polite">
@@ -1533,7 +1609,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Clock</p>
               <h3>Factory Clock</h3>
             </div>
-            <span className={`status-chip status-${clockStatus}`}>{clockStatus}</span>
+            <StatusChip status={clockStatus} workerHost={workerHost} />
           </div>
 
           {clockError ? <div className="error-note">{clockError}</div> : null}
@@ -1576,9 +1652,10 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Manufacturing</p>
               <h3>Process Stopwatch</h3>
             </div>
-            <span className={`status-chip ${isStopwatchRunning ? "status-running" : "status-ready"}`}>
-              {isStopwatchRunning ? "running" : "ready"}
-            </span>
+            <StatusChip
+              status={isStopwatchRunning ? "running" : "ready"}
+              workerHost={workerHost}
+            />
           </div>
 
           <div className="stopwatch-face" aria-live="polite">
@@ -1646,7 +1723,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Time</p>
               <h3>Online Alarm</h3>
             </div>
-            <span className="status-chip status-ready">online</span>
+            <StatusChip label="online" status="online" workerHost={workerHost} />
           </div>
 
           <div className="alarm-clock-face" aria-live="polite">
@@ -1767,9 +1844,10 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Time</p>
               <h3>Countdown Timer</h3>
             </div>
-            <span className={`status-chip ${isCountdownRunning ? "status-running" : "status-ready"}`}>
-              {isCountdownRunning ? "running" : "ready"}
-            </span>
+            <StatusChip
+              status={isCountdownRunning ? "running" : "ready"}
+              workerHost={workerHost}
+            />
           </div>
 
           <div className="countdown-face" aria-live="polite">
@@ -1899,7 +1977,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Factory tools</p>
               <h3>Alarm Decoder</h3>
             </div>
-            <span className={`status-chip status-${alarmStatus}`}>{alarmStatus}</span>
+            <StatusChip status={alarmStatus} workerHost={workerHost} />
           </div>
 
           <div className="alarm-layout">
@@ -1981,7 +2059,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Engineering math</p>
               <h3>Unit Converter</h3>
             </div>
-            <span className={`status-chip status-${unitStatus}`}>{unitStatus}</span>
+            <StatusChip status={unitStatus} workerHost={workerHost} />
           </div>
 
           <div className="tool-form unit-form">
@@ -2084,7 +2162,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <p className="eyebrow">Factory math</p>
               <h3>Yield / Scrap / UPH Calculator</h3>
             </div>
-            <span className={`status-chip status-${yieldStatus}`}>{yieldStatus}</span>
+            <StatusChip status={yieldStatus} workerHost={workerHost} />
           </div>
 
           <div className="tool-form yield-form">

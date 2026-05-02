@@ -577,31 +577,96 @@ a {
 }
 
 .status-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  isolation: isolate;
+  overflow: hidden;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-control), transparent 18%);
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 800;
   line-height: 1;
-  padding: 7px 10px;
+  min-height: 30px;
+  padding: 6px 10px 6px 8px;
   text-transform: uppercase;
+}
+
+.status-chip::after {
+  position: absolute;
+  z-index: -1;
+  inset: -40% auto -40% -65%;
+  width: 52%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--brand-text), transparent 44%),
+    transparent
+  );
+  content: "";
+  opacity: 0;
+  transform: skewX(-18deg);
+}
+
+.status-canvas {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.status-label {
+  position: relative;
+  z-index: 1;
 }
 
 .status-ready {
   border-color: var(--brand-border);
-  background: var(--accent-soft);
+  background:
+    radial-gradient(circle at 18px 50%, var(--accent-soft), transparent 48%),
+    var(--surface-control);
+  color: var(--brand-text);
+}
+
+.status-online {
+  border-color: var(--brand-border);
+  background:
+    radial-gradient(circle at 18px 50%, var(--accent-soft), transparent 48%),
+    var(--surface-control);
   color: var(--brand-text);
 }
 
 .status-running {
-  background: var(--surface-active);
+  border-color: color-mix(in srgb, var(--brand-border), white 10%);
+  background:
+    radial-gradient(circle at 18px 50%, color-mix(in srgb, var(--brand-text), transparent 72%), transparent 48%),
+    var(--surface-active);
   color: var(--text-secondary);
+  box-shadow: 0 0 18px var(--glow-cyan);
+}
+
+.status-running::after {
+  animation: status-scan 1.45s ease-in-out infinite;
+  opacity: 1;
 }
 
 .status-error {
   border-color: var(--error-border);
   background: var(--error-bg);
   color: var(--error-text);
+}
+
+@keyframes status-scan {
+  from {
+    transform: translateX(0) skewX(-18deg);
+  }
+
+  to {
+    transform: translateX(360%) skewX(-18deg);
+  }
 }
 
 .tool-form {
