@@ -38,6 +38,19 @@ type OnlineAlarm = {
   lastTriggeredKey: string | null;
 };
 
+type CalendarDay = {
+  date: Date;
+  dayNumber: number;
+  isCurrentMonth: boolean;
+  isSelected: boolean;
+  isToday: boolean;
+};
+
+type CalendarWeek = {
+  weekNumber: number;
+  days: CalendarDay[];
+};
+
 type ActiveTool =
   | "workweek"
   | "duration"
@@ -310,6 +323,70 @@ function formatClockDate(date: Date): string {
   });
 }
 
+function startOfDate(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function toIsoDateKey(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function getIsoWeekInfo(date: Date): { isoWeek: number; isoYear: number } {
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNumber = utcDate.getUTCDay() || 7;
+
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNumber);
+
+  const isoYear = utcDate.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+  const isoWeek = Math.ceil(((utcDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+
+  return { isoWeek, isoYear };
+}
+
+function getIsoWeeksInYear(year: number): number {
+  return getIsoWeekInfo(new Date(year, 11, 28)).isoWeek;
+}
+
+function buildMonthCalendar(monthDate: Date, selectedDate: Date): CalendarWeek[] {
+  const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+  const firstMonday = new Date(monthStart);
+  const firstDayOffset = (monthStart.getDay() + 6) % 7;
+  const selectedKey = toIsoDateKey(selectedDate);
+  const todayKey = toIsoDateKey(new Date());
+
+  firstMonday.setDate(monthStart.getDate() - firstDayOffset);
+
+  const weeks: CalendarWeek[] = [];
+  const cursor = new Date(firstMonday);
+
+  while (cursor <= monthEnd || cursor.getDay() !== 1) {
+    const weekStart = new Date(cursor);
+    const days = Array.from({ length: 7 }, () => {
+      const dayDate = new Date(cursor);
+      const dayKey = toIsoDateKey(dayDate);
+
+      cursor.setDate(cursor.getDate() + 1);
+
+      return {
+        date: dayDate,
+        dayNumber: dayDate.getDate(),
+        isCurrentMonth: dayDate.getMonth() === monthDate.getMonth(),
+        isSelected: dayKey === selectedKey,
+        isToday: dayKey === todayKey,
+      };
+    });
+
+    weeks.push({
+      weekNumber: getIsoWeekInfo(weekStart).isoWeek,
+      days,
+    });
+  }
+
+  return weeks;
+}
+
 function formatCountdown(milliseconds: number): string {
   const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
   const hours = Math.floor(totalSeconds / 3600);
@@ -423,6 +500,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [yieldScrapQuantity, setYieldScrapQuantity] = useState(40);
   const [yieldRuntimeMinutes, setYieldRuntimeMinutes] = useState(480);
   const [yieldTargetUph, setYieldTargetUph] = useState(115);
+  const [workweekMonthOffset, setWorkweekMonthOffset] = useState(0);
   const [alarmClockNow, setAlarmClockNow] = useState(() => new Date());
   const [alarmHour, setAlarmHour] = useState("07");
   const [alarmMinute, setAlarmMinute] = useState("00");
@@ -563,6 +641,30 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     }),
     [unitCategory, unitFrom, unitInputValue, unitTo],
   );
+  const workweekCalendar = useMemo(() => {
+    const selectedDate = result?.shiftDate
+      ? startOfDate(new Date(`${result.shiftDate}T00:00:00`))
+      : startOfDate(new Date(timestamp));
+    const visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + workweekMonthOffset, 1);
+    const monthLabel = visibleMonth.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+    const selectedWeek = result?.isoWeek ?? getIsoWeekInfo(selectedDate).isoWeek;
+    const weeksInYear = getIsoWeeksInYear(result?.isoYear ?? selectedDate.getFullYear());
+
+    return {
+      monthLabel,
+      selectedDateLabel: selectedDate.toLocaleDateString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+      }),
+      selectedWeek,
+      weeks: buildMonthCalendar(visibleMonth, selectedDate),
+      weeksRemaining: Math.max(0, weeksInYear - selectedWeek),
+    };
+  }, [result?.isoWeek, result?.isoYear, result?.shiftDate, timestamp, workweekMonthOffset]);
   const yieldPayload = useMemo(
     () => ({
       inputQuantity: yieldInputQuantity,
@@ -685,6 +787,10 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [requestPayload, workerHost]);
+
+  useEffect(() => {
+    setWorkweekMonthOffset(0);
+  }, [timestamp]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -1158,27 +1264,67 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
 
           {error ? <div className="error-note">{error}</div> : null}
 
-          <div className="result-grid" aria-live="polite">
-            <div className="result-tile">
-              <span>Year</span>
-              <strong>{result?.isoYear ?? "--"}</strong>
-            </div>
-            <div className="result-tile">
+          <div className="workweek-overview" aria-live="polite">
+            <section className="workweek-number-card">
               <span>WorkWeek</span>
-              <strong>{result ? `WW${String(result.isoWeek).padStart(2, "0")}` : "--"}</strong>
-            </div>
-            <div className="result-tile">
-              <span>Shift</span>
-              <strong>{result?.shiftName ?? "--"}</strong>
-            </div>
-            <div className="result-tile">
-              <span>Shift date</span>
-              <strong>{result?.shiftDate ?? "--"}</strong>
-            </div>
-            <div className="result-tile">
-              <span>Day</span>
-              <strong>{result?.dayName ?? "--"}</strong>
-            </div>
+              <strong>{result ? String(result.isoWeek).padStart(2, "0") : "--"}</strong>
+              <p>{workweekCalendar.selectedDateLabel}</p>
+              <small>Weeks remaining this year: {workweekCalendar.weeksRemaining}</small>
+            </section>
+
+            <section className="workweek-calendar-card">
+              <div className="workweek-calendar-header">
+                <button
+                  aria-label="Previous month"
+                  type="button"
+                  onClick={() => setWorkweekMonthOffset((current) => current - 1)}
+                >
+                  ‹
+                </button>
+                <span>{workweekCalendar.monthLabel}</span>
+                <button
+                  aria-label="Next month"
+                  type="button"
+                  onClick={() => setWorkweekMonthOffset((current) => current + 1)}
+                >
+                  ›
+                </button>
+                <strong>WW{String(workweekCalendar.selectedWeek).padStart(2, "0")}</strong>
+              </div>
+              <div className="workweek-calendar-grid" aria-label="Monthly calendar with WorkWeek">
+                {["#", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
+                  <span className="workweek-calendar-heading" key={label}>
+                    {label}
+                  </span>
+                ))}
+                {workweekCalendar.weeks.map((week) => (
+                  <div className="workweek-calendar-row" key={`${workweekCalendar.monthLabel}-${week.weekNumber}`}>
+                    <span className="workweek-calendar-week">{String(week.weekNumber).padStart(2, "0")}</span>
+                    {week.days.map((day) => (
+                      <span
+                        className={[
+                          "workweek-calendar-day",
+                          day.isCurrentMonth ? "" : "is-muted",
+                          day.isSelected ? "is-selected" : "",
+                          day.isToday ? "is-today" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        key={day.date.toISOString()}
+                      >
+                        {day.dayNumber}
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <div className="workweek-shift-summary">
+                <span>Year: {result?.isoYear ?? "--"}</span>
+                <span>Shift: {result?.shiftName ?? "--"}</span>
+                <span>Shift date: {result?.shiftDate ?? "--"}</span>
+                <span>Day: {result?.dayName ?? "--"}</span>
+              </div>
+            </section>
           </div>
         </article>
         ) : null}
