@@ -116,7 +116,7 @@ Initial tools:
 - Yield and scrap calculator. (Implemented in Phase 0 tool library prototype)
 - Capacity, takt, and loading planner. (Implemented in Phase 0 tool library prototype)
 - OEE and downtime calculator. (Implemented in Phase 0 tool library prototype)
-- SPC quick helper.
+- SPC quick helper. (Implemented in Phase 0 tool library prototype)
 - Alarm code decoder.
 - Log parser.
 - Recipe compare.
@@ -313,9 +313,8 @@ Acceptance:
 
 ## Near-Term Tool Build Order
 
-1. SPC quick helper.
-2. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
-3. CSV and log quick parser after sample logs are available.
+1. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
+2. CSV and log quick parser after sample logs are available.
 
 ---
 

@@ -15,6 +15,9 @@ import type {
   PublicHolidayLookupMonth,
   PublicHolidayLookupRequestPayload,
   PublicHolidayLookupResultPayload,
+  SpcCalculateRequestPayload,
+  SpcCalculateResultPayload,
+  SpcStatus,
   TimeUtilityMode,
   TimeUtilityRequestPayload,
   TimeUtilityResultPayload,
@@ -1429,6 +1432,141 @@ function calculateOee(payload: OeeCalculateRequestPayload): OeeCalculateResultPa
   };
 }
 
+function parseNumericSamples(rawSamples: string): number[] {
+  return rawSamples
+    .split(/[\s,;]+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value));
+}
+
+function formatCapability(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 3,
+    minimumFractionDigits: 0,
+  }).format(value);
+}
+
+function calculateSpc(payload: SpcCalculateRequestPayload): SpcCalculateResultPayload {
+  const samples = parseNumericSamples(payload.sampleValues);
+  const lowerSpecLimit = Number(payload.lowerSpecLimit);
+  const upperSpecLimit = Number(payload.upperSpecLimit);
+  const targetValue = Number(payload.targetValue);
+  const subgroupSize = Math.max(1, Math.trunc(Number(payload.subgroupSize)));
+
+  if (samples.length < 2) {
+    throw new Error("Enter at least two numeric sample values.");
+  }
+
+  if (![lowerSpecLimit, upperSpecLimit, targetValue, subgroupSize].every((value) => Number.isFinite(value))) {
+    throw new Error("Enter valid numeric spec limits, target, and subgroup size.");
+  }
+
+  if (upperSpecLimit <= lowerSpecLimit) {
+    throw new Error("Upper spec limit must be greater than lower spec limit.");
+  }
+
+  const sampleCount = samples.length;
+  const mean = samples.reduce((total, value) => total + value, 0) / sampleCount;
+  const variance =
+    samples.reduce((total, value) => total + (value - mean) ** 2, 0) / (sampleCount - 1);
+  const standardDeviation = Math.sqrt(variance);
+  const min = Math.min(...samples);
+  const max = Math.max(...samples);
+  const range = max - min;
+  const cp = standardDeviation > 0 ? (upperSpecLimit - lowerSpecLimit) / (6 * standardDeviation) : Number.POSITIVE_INFINITY;
+  const cpk =
+    standardDeviation > 0
+      ? Math.min(upperSpecLimit - mean, mean - lowerSpecLimit) / (3 * standardDeviation)
+      : Number.POSITIVE_INFINITY;
+  const outOfSpecCount = samples.filter((value) => value < lowerSpecLimit || value > upperSpecLimit).length;
+
+  let status: SpcStatus = "info";
+
+  if (outOfSpecCount > 0 || cpk < 1) {
+    status = "risk";
+  } else if (cpk < 1.33) {
+    status = "watch";
+  } else {
+    status = "capable";
+  }
+
+  const recommendations: string[] = [];
+
+  if (outOfSpecCount > 0) {
+    recommendations.push("Contain out-of-spec samples and verify measurement method before releasing the lot.");
+  }
+
+  if (cpk < 1) {
+    recommendations.push("Process is not capable against current limits. Check centering, tool condition, and recipe drift.");
+  } else if (cpk < 1.33) {
+    recommendations.push("Capability is marginal. Continue sampling and review centering before the next production window.");
+  }
+
+  if (Math.abs(mean - targetValue) > (upperSpecLimit - lowerSpecLimit) * 0.1) {
+    recommendations.push("Mean is drifting away from target. Review setup and calibration trend.");
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push("Capability is healthy for this sample set. Keep monitoring trend and subgroup variation.");
+  }
+
+  const summary =
+    status === "capable"
+      ? "Process capability is healthy for this sample set."
+      : status === "watch"
+        ? "Process capability is marginal. Watch trend and centering."
+        : status === "risk"
+          ? "Process capability needs attention before release."
+          : "Add sample values and spec limits to calculate SPC capability.";
+
+  return {
+    sampleCount,
+    mean,
+    standardDeviation,
+    min,
+    max,
+    range,
+    lowerSpecLimit,
+    upperSpecLimit,
+    targetValue,
+    subgroupSize,
+    cp,
+    cpk,
+    outOfSpecCount,
+    status,
+    summary,
+    metrics: [
+      {
+        label: "Cpk",
+        value: formatCapability(cpk),
+        tone: cpk >= 1.33 ? "good" : cpk >= 1 ? "warning" : "danger",
+      },
+      {
+        label: "Cp",
+        value: formatCapability(cp),
+        tone: cp >= 1.33 ? "good" : cp >= 1 ? "warning" : "danger",
+      },
+      { label: "Mean", value: formatCapability(mean), tone: "neutral" },
+      { label: "Sigma", value: formatCapability(standardDeviation), tone: "neutral" },
+      { label: "Range", value: formatCapability(range), tone: "neutral" },
+      {
+        label: "Out of spec",
+        value: formatNumber(outOfSpecCount),
+        tone: outOfSpecCount === 0 ? "good" : "danger",
+      },
+      { label: "Samples", value: formatNumber(sampleCount), tone: "neutral" },
+      { label: "Subgroup", value: formatNumber(subgroupSize), tone: "neutral" },
+    ],
+    recommendedActions: recommendations,
+  };
+}
+
 const monthFormatter = new Intl.DateTimeFormat("en-US", {
   month: "long",
   year: "numeric",
@@ -1610,6 +1748,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:oee-calculate") {
       const payload = calculateOee(message.payload as OeeCalculateRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:oee-calculate:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:spc-calculate") {
+      const payload = calculateSpc(message.payload as SpcCalculateRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:spc-calculate:result", payload });
       return;
     }
 

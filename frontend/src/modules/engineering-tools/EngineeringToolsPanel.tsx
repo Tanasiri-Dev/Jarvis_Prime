@@ -7,6 +7,7 @@ import type {
   FactoryClockResultPayload,
   OeeCalculateResultPayload,
   RenderStatusName,
+  SpcCalculateResultPayload,
   TimeUtilityMode,
   TimeUtilityResultPayload,
   TimezoneConversionResultPayload,
@@ -80,6 +81,7 @@ type ActiveTool =
   | "yield-calculator"
   | "capacity-planner"
   | "oee-calculator"
+  | "spc-helper"
   | "online-alarm"
   | "countdown-timer";
 
@@ -98,6 +100,7 @@ const toolOptions: ToolOption[] = [
   { id: "yield-calculator", label: "Yield / Scrap / UPH", category: "Manufacturing", audiences: ["engineer", "planner"] },
   { id: "capacity-planner", label: "Capacity / Takt Planner", category: "Manufacturing", audiences: ["planner", "engineer"] },
   { id: "oee-calculator", label: "OEE / Downtime", category: "Manufacturing", audiences: ["engineer", "planner", "operator"] },
+  { id: "spc-helper", label: "SPC Quick Helper", category: "Manufacturing", audiences: ["engineer", "planner"] },
   { id: "alarm-decoder", label: "Alarm Decoder", category: "Decoder", audiences: ["engineer", "operator"] },
 ];
 
@@ -690,6 +693,13 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [oeeTotalCount, setOeeTotalCount] = useState(820);
   const [oeeGoodCount, setOeeGoodCount] = useState(790);
   const [oeeDowntimeReason, setOeeDowntimeReason] = useState("Material wait");
+  const [spcSampleValues, setSpcSampleValues] = useState(
+    "10.02, 10.04, 9.98, 10.01, 10.03, 10.00, 9.99, 10.05, 10.02, 10.01",
+  );
+  const [spcLowerSpec, setSpcLowerSpec] = useState(9.9);
+  const [spcUpperSpec, setSpcUpperSpec] = useState(10.1);
+  const [spcTarget, setSpcTarget] = useState(10);
+  const [spcSubgroupSize, setSpcSubgroupSize] = useState(5);
   const [workweekMonthOffset, setWorkweekMonthOffset] = useState(0);
   const [toolFilter, setToolFilter] = useState<ToolFilter>("all");
   const [alarmClockNow, setAlarmClockNow] = useState(() => new Date());
@@ -741,6 +751,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [yieldResult, setYieldResult] = useState<YieldCalculateResultPayload | null>(null);
   const [capacityResult, setCapacityResult] = useState<CapacityPlanResultPayload | null>(null);
   const [oeeResult, setOeeResult] = useState<OeeCalculateResultPayload | null>(null);
+  const [spcResult, setSpcResult] = useState<SpcCalculateResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
   const [weekRangeStatus, setWeekRangeStatus] = useState<ToolStatus>("idle");
   const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
@@ -752,6 +763,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [yieldStatus, setYieldStatus] = useState<ToolStatus>("idle");
   const [capacityStatus, setCapacityStatus] = useState<ToolStatus>("idle");
   const [oeeStatus, setOeeStatus] = useState<ToolStatus>("idle");
+  const [spcStatus, setSpcStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [weekRangeError, setWeekRangeError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
@@ -763,6 +775,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [yieldError, setYieldError] = useState<string | null>(null);
   const [capacityError, setCapacityError] = useState<string | null>(null);
   const [oeeError, setOeeError] = useState<string | null>(null);
+  const [spcError, setSpcError] = useState<string | null>(null);
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
   const [stopwatchBaseMs, setStopwatchBaseMs] = useState(0);
@@ -967,6 +980,16 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       oeeTargetUph,
       oeeTotalCount,
     ],
+  );
+  const spcPayload = useMemo(
+    () => ({
+      sampleValues: spcSampleValues,
+      lowerSpecLimit: spcLowerSpec,
+      upperSpecLimit: spcUpperSpec,
+      targetValue: spcTarget,
+      subgroupSize: spcSubgroupSize,
+    }),
+    [spcLowerSpec, spcSampleValues, spcSubgroupSize, spcTarget, spcUpperSpec],
   );
   const filteredToolOptions = useMemo(
     () =>
@@ -1387,6 +1410,38 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [oeePayload, workerHost]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setSpcStatus("running");
+    setSpcError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<SpcCalculateResultPayload>("compute", "tool:spc-calculate", spcPayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setSpcResult(payload);
+          setSpcStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setSpcStatus("error");
+          setSpcError(reason instanceof Error ? reason.message : "Unable to calculate SPC capability.");
+        });
+    }, 120);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [spcPayload, workerHost]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -3270,6 +3325,124 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           </div>
         </article>
         ) : null}
+
+        {activeTool === "spc-helper" ? (
+        <article className="panel tool-card spc-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Quality</p>
+              <h3>SPC Quick Helper</h3>
+            </div>
+            <StatusChip status={spcStatus} workerHost={workerHost} />
+          </div>
+
+          <div className="spc-form">
+            <label className="spc-sample-field">
+              <span>Sample values</span>
+              <textarea
+                rows={5}
+                value={spcSampleValues}
+                onChange={(event) => setSpcSampleValues(event.target.value)}
+              />
+            </label>
+
+            <div className="spc-limit-grid">
+              <label>
+                <span>LSL</span>
+                <input
+                  type="number"
+                  value={spcLowerSpec}
+                  onChange={(event) => setSpcLowerSpec(Number(event.target.value))}
+                />
+              </label>
+
+              <label>
+                <span>USL</span>
+                <input
+                  type="number"
+                  value={spcUpperSpec}
+                  onChange={(event) => setSpcUpperSpec(Number(event.target.value))}
+                />
+              </label>
+
+              <label>
+                <span>Target</span>
+                <input
+                  type="number"
+                  value={spcTarget}
+                  onChange={(event) => setSpcTarget(Number(event.target.value))}
+                />
+              </label>
+
+              <label>
+                <span>Subgroup</span>
+                <input
+                  min="1"
+                  type="number"
+                  value={spcSubgroupSize}
+                  onChange={(event) => setSpcSubgroupSize(Number(event.target.value))}
+                />
+              </label>
+            </div>
+          </div>
+
+          {spcError ? <div className="error-note">{spcError}</div> : null}
+
+          <div className={`spc-hero spc-status-${spcResult?.status ?? "info"}`} aria-live="polite">
+            <span>Process capability</span>
+            <strong>{spcResult ? `Cpk ${spcResult.metrics[0].value}` : "--"}</strong>
+            <p>{spcResult?.summary ?? "Enter sample values and limits to calculate capability."}</p>
+          </div>
+
+          <div className="yield-metric-grid">
+            {spcResult?.metrics.map((metric) => (
+              <article className={`yield-metric-card yield-tone-${metric.tone}`} key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+              </article>
+            )) ?? null}
+          </div>
+
+          <div className="alarm-detail-grid">
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Spec summary</span>
+                <strong>{spcResult?.status ?? "--"}</strong>
+              </div>
+              <div className="yield-reconcile-list">
+                <div>
+                  <span>Limits</span>
+                  <strong>
+                    {spcResult
+                      ? `${spcResult.lowerSpecLimit} to ${spcResult.upperSpecLimit}`
+                      : "--"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Min / max</span>
+                  <strong>{spcResult ? `${spcResult.min} / ${spcResult.max}` : "--"}</strong>
+                </div>
+                <div>
+                  <span>Target</span>
+                  <strong>{spcResult?.targetValue ?? "--"}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Recommended actions</span>
+                <strong>{spcResult?.recommendedActions.length ?? 0}</strong>
+              </div>
+              <ol className="alarm-action-list">
+                {spcResult?.recommendedActions.map((action) => (
+                  <li key={action}>{action}</li>
+                )) ?? null}
+              </ol>
+            </section>
+          </div>
+        </article>
+        ) : null}
         </div>
 
         <aside className="panel tool-library">
@@ -3308,7 +3481,6 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
 
           <p className="eyebrow library-subtitle">Coming next</p>
           <ul>
-            <li>SPC quick helper</li>
             <li>CSV and log quick parser</li>
           </ul>
         </aside>

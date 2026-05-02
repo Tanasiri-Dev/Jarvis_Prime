@@ -310,6 +310,42 @@ export interface OeeCalculateResultPayload {
   recommendedActions: string[];
 }
 
+export interface SpcCalculateRequestPayload {
+  sampleValues: string;
+  lowerSpecLimit: number;
+  upperSpecLimit: number;
+  targetValue: number;
+  subgroupSize: number;
+}
+
+export type SpcStatus = "capable" | "watch" | "risk" | "info";
+
+export interface SpcMetric {
+  label: string;
+  value: string;
+  tone: "good" | "warning" | "danger" | "neutral";
+}
+
+export interface SpcCalculateResultPayload {
+  sampleCount: number;
+  mean: number;
+  standardDeviation: number;
+  min: number;
+  max: number;
+  range: number;
+  lowerSpecLimit: number;
+  upperSpecLimit: number;
+  targetValue: number;
+  subgroupSize: number;
+  cp: number;
+  cpk: number;
+  outOfSpecCount: number;
+  status: SpcStatus;
+  summary: string;
+  metrics: SpcMetric[];
+  recommendedActions: string[];
+}
+
 export interface PublicHolidayApiItem {
   date: string;
   localName: string;

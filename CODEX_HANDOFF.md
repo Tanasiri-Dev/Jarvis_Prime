@@ -116,6 +116,10 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Calculates Availability, Performance, Quality, OEE, run window, lost units, reject count, and top downtime reason.
   - Designed for Manufacturing Engineer, Planner, and Operator use cases.
   - Uses `tool:oee-calculate` in `compute-worker`.
+- SPC Quick Helper
+  - Calculates Cp, Cpk, mean, sample standard deviation, min, max, range, out-of-spec count, and capability status.
+  - Designed for Manufacturing Engineer and Planner quality checks.
+  - Uses `tool:spc-calculate` in `compute-worker`.
 
 ## Implemented Planner Tools
 
@@ -145,16 +149,16 @@ Route: `http://127.0.0.1:5173/#public-holidays`
 
 ## Recommended Next Tool
 
-Add `SPC quick helper` next.
+Add `Meeting room calendar mockup` next.
 
 Suggested first fields:
 
-- Sample values
-- Upper and lower spec limits
-- Optional target value
-- Subgroup size
-- Cp, Cpk, mean, standard deviation, min, max
-- Simple risk summary and recommended actions
+- Meeting rooms: Phuket, Pattaya, Singha, Chang
+- Date and time range
+- Owner / purpose
+- Room availability status
+- Conflict detection
+- Simple planner-style calendar cards
 
 ## Latest Working Verification
 
