@@ -1341,7 +1341,11 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
         return;
       }
 
-      if (event.key === " ") {
+      if (event.repeat) {
+        return;
+      }
+
+      if (event.code === "Space" || event.key === " ") {
         event.preventDefault();
         if (isStopwatchRunning) {
           stopStopwatch();
@@ -1351,28 +1355,26 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
         return;
       }
 
-      const key = event.key.toLowerCase();
-
-      if (key === "l") {
+      if (event.code === "KeyL" || event.key.toLowerCase() === "l") {
         event.preventDefault();
         recordLap();
         return;
       }
 
-      if (key === "r") {
+      if (event.code === "KeyR" || event.key.toLowerCase() === "r") {
         event.preventDefault();
         resetStopwatch();
         return;
       }
 
-      if (key === "f") {
+      if (event.code === "KeyF" || event.key.toLowerCase() === "f") {
         event.preventDefault();
         toggleStopwatchFullscreen();
       }
     };
 
-    window.addEventListener("keydown", handleShortcut);
-    return () => window.removeEventListener("keydown", handleShortcut);
+    document.addEventListener("keydown", handleShortcut, { capture: true });
+    return () => document.removeEventListener("keydown", handleShortcut, { capture: true });
   }, [activeTool, elapsedMs, isStopwatchRunning, stopwatchStartedAt]);
 
   const addTimezoneCard = () => {
