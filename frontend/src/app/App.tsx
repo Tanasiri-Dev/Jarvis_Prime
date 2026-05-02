@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { EventBus } from "../core/event-bus";
+import { createTranslator, getHtmlLang, isLocale, localeOptions } from "../core/i18n";
+import type { Locale, TranslationKey } from "../core/i18n";
 import { ModuleRegistry } from "../core/module-registry";
 import type { ModuleContext } from "../core/module-contract";
 import { WorkerHost } from "../core/worker-host";
@@ -17,10 +19,11 @@ import "./App.css";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 const themeStorageKey = "jarvis-prime.theme";
+const localeStorageKey = "jarvis-prime.locale";
 
 const themeOptions = [
-  { id: "dark", label: "Dark", icon: "☾" },
-  { id: "white", label: "White", icon: "☀" },
+  { id: "dark", labelKey: "app.theme.dark", icon: "☾" },
+  { id: "white", labelKey: "app.theme.white", icon: "☀" },
 ] as const;
 
 type ThemeMode = (typeof themeOptions)[number]["id"];
@@ -31,41 +34,47 @@ type AppRoute =
   | "public-holidays"
   | "diagnostics";
 
-const routes: Array<{ id: AppRoute; href: string; label: string; title: string; eyebrow: string }> = [
+const routes: Array<{
+  id: AppRoute;
+  href: string;
+  labelKey: TranslationKey;
+  titleKey: TranslationKey;
+  eyebrowKey: TranslationKey;
+}> = [
   {
     id: "command-center",
     href: "#command-center",
-    label: "Command",
-    title: "Command Center",
-    eyebrow: "Phase 0 foundation",
+    labelKey: "app.nav.command",
+    titleKey: "app.route.command.title",
+    eyebrowKey: "app.route.command.eyebrow",
   },
   {
     id: "engineering-tools",
     href: "#engineering-tools",
-    label: "Tools",
-    title: "Engineering Tools",
-    eyebrow: "Worker-backed utilities",
+    labelKey: "app.nav.tools",
+    titleKey: "app.route.tools.title",
+    eyebrowKey: "app.route.tools.eyebrow",
   },
   {
     id: "public-holidays",
     href: "#public-holidays",
-    label: "Holidays",
-    title: "Public Holidays",
-    eyebrow: "Planner calendar",
+    labelKey: "app.nav.holidays",
+    titleKey: "app.route.holidays.title",
+    eyebrowKey: "app.route.holidays.eyebrow",
   },
   {
     id: "meeting-room",
     href: "#meeting-room",
-    label: "Meeting Room",
-    title: "Meeting Room",
-    eyebrow: "Planner calendar",
+    labelKey: "app.nav.meetingRoom",
+    titleKey: "app.route.meetingRoom.title",
+    eyebrowKey: "app.route.meetingRoom.eyebrow",
   },
   {
     id: "diagnostics",
     href: "#diagnostics",
-    label: "Diagnostics",
-    title: "Diagnostics",
-    eyebrow: "Parallel runtime",
+    labelKey: "app.nav.diagnostics",
+    titleKey: "app.route.diagnostics.title",
+    eyebrowKey: "app.route.diagnostics.eyebrow",
   },
 ];
 
@@ -93,6 +102,26 @@ function getInitialTheme(): ThemeMode {
   return isThemeMode(storedTheme) ? storedTheme : "dark";
 }
 
+function getInitialLocale(): Locale {
+  const storedLocale = window.localStorage.getItem(localeStorageKey);
+
+  if (isLocale(storedLocale)) {
+    return storedLocale;
+  }
+
+  const browserLocale = navigator.language;
+
+  if (browserLocale.toLowerCase().startsWith("th")) {
+    return "th";
+  }
+
+  if (browserLocale.toLowerCase().startsWith("zh")) {
+    return "zh-CN";
+  }
+
+  return "en";
+}
+
 function getRouteFromHash(): AppRoute {
   const routeId = window.location.hash.replace("#", "");
   return routes.some((route) => route.id === routeId) ? (routeId as AppRoute) : "command-center";
@@ -115,7 +144,9 @@ export function App() {
   const [moduleIds, setModuleIds] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
+  const [locale, setLocale] = useState<Locale>(getInitialLocale);
   const [activeRoute, setActiveRoute] = useState<AppRoute>(getRouteFromHash);
+  const t = useMemo(() => createTranslator(locale), [locale]);
   const activeRouteConfig = routes.find((route) => route.id === activeRoute) ?? routes[0];
 
   useEffect(() => {
@@ -142,6 +173,11 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
+    document.documentElement.lang = getHtmlLang(locale);
+    window.localStorage.setItem(localeStorageKey, locale);
+  }, [locale]);
+
+  useEffect(() => {
     const syncRoute = () => setActiveRoute(getRouteFromHash());
     window.addEventListener("hashchange", syncRoute);
     syncRoute();
@@ -157,7 +193,7 @@ export function App() {
             <span className="brand-mark">JP</span>
             <div>
               <strong>Jarvis Prime</strong>
-              <span>Engineering assistant</span>
+              <span>{t("app.brand.subtitle")}</span>
             </div>
           </div>
 
@@ -168,7 +204,7 @@ export function App() {
                 aria-current={activeRoute === route.id ? "page" : undefined}
                 href={route.href}
               >
-                {route.label}
+                {t(route.labelKey)}
               </a>
             ))}
           </nav>
@@ -179,10 +215,10 @@ export function App() {
         <header className="top-bar">
           <div className="top-bar-title">
             <button
-              aria-label={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              aria-label={isSidebarOpen ? t("app.sidebar.hide") : t("app.sidebar.show")}
               aria-expanded={isSidebarOpen}
               className="icon-button sidebar-toggle"
-              title={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              title={isSidebarOpen ? t("app.sidebar.hide") : t("app.sidebar.show")}
               type="button"
               onClick={() => setIsSidebarOpen((current) => !current)}
             >
@@ -193,19 +229,34 @@ export function App() {
               </span>
             </button>
             <div>
-              <p className="eyebrow">{activeRouteConfig.eyebrow}</p>
-              <h1>{activeRouteConfig.title}</h1>
+              <p className="eyebrow">{t(activeRouteConfig.eyebrowKey)}</p>
+              <h1>{t(activeRouteConfig.titleKey)}</h1>
             </div>
           </div>
           <div className="top-bar-actions">
-            <div className="theme-switcher" role="group" aria-label="Theme">
+            <div className="language-switcher" role="group" aria-label={t("app.language.label")}>
+              {localeOptions.map((option) => (
+                <button
+                  key={option.id}
+                  aria-label={`${t("app.language.label")}: ${option.label}`}
+                  aria-pressed={locale === option.id}
+                  className="language-option"
+                  title={option.label}
+                  type="button"
+                  onClick={() => setLocale(option.id)}
+                >
+                  {option.shortLabel}
+                </button>
+              ))}
+            </div>
+            <div className="theme-switcher" role="group" aria-label={t("app.theme.label")}>
               {themeOptions.map((option) => (
                 <button
                   key={option.id}
-                  aria-label={`Use ${option.label} theme`}
+                  aria-label={`${t("app.theme.label")}: ${t(option.labelKey)}`}
                   aria-pressed={theme === option.id}
                   className="theme-option"
-                  title={option.label}
+                  title={t(option.labelKey)}
                   type="button"
                   onClick={() => setTheme(option.id)}
                 >
@@ -213,7 +264,7 @@ export function App() {
                 </button>
               ))}
             </div>
-            <div className="session-pill">Viewer prototype</div>
+            <div className="session-pill">{t("app.session.viewerPrototype")}</div>
           </div>
         </header>
 
@@ -221,19 +272,19 @@ export function App() {
           <>
             <section id="command-center" className="command-grid" aria-label="Command Center">
               <article className="panel focus-panel">
-                <p className="eyebrow">Today</p>
-                <h2>Build the reliable core first.</h2>
-                <p>React shell, worker rendering, and clean module boundaries.</p>
+                <p className="eyebrow">{t("app.command.eyebrow")}</p>
+                <h2>{t("app.command.title")}</h2>
+                <p>{t("app.command.description")}</p>
               </article>
 
               <article className="panel metric-panel">
-                <span>Registered modules</span>
+                <span>{t("app.command.modules")}</span>
                 <strong>{moduleIds.length}</strong>
-                <small>{moduleIds.join(", ") || "initializing"}</small>
+                <small>{moduleIds.join(", ") || t("app.command.initializing")}</small>
               </article>
 
               <article className="panel metric-panel">
-                <span>API target</span>
+                <span>{t("app.command.apiTarget")}</span>
                 <strong>v1</strong>
                 <small>{apiBaseUrl}</small>
               </article>
@@ -255,14 +306,14 @@ export function App() {
 
         <footer className="app-footer">
           <div>
-            <p className="footer-kicker">AI Code with Human Control</p>
+            <p className="footer-kicker">{t("app.footer.kicker")}</p>
             <p className="footer-copy">
-              Worker-first tools for manufacturing engineers, planners, and factory teams.
+              {t("app.footer.copy")}
             </p>
           </div>
 
           <div className="footer-right">
-            <nav className="footer-social" aria-label="Jarvis Prime links">
+            <nav className="footer-social" aria-label={t("app.footer.linksLabel")}>
               {socialLinks.map((link) => (
                 <a
                   key={link.label}
@@ -275,7 +326,7 @@ export function App() {
               ))}
             </nav>
             <p className="footer-copyright">
-              (C) 2026 Tanasiri-Jarvis Prime. All Right Reserve.
+              {t("app.footer.copyright")}
             </p>
           </div>
         </footer>

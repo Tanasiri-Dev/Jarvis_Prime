@@ -378,5 +378,6 @@ jarvis-prime/
 
 Newest entries at top.
 
+- 2026-05-02 - Phase 4A internationalization foundation started with English, Thai, and Simplified Chinese dictionaries plus persisted language switching.
 - 2026-05-01 - ADR-0001 accepted for React + TypeScript + Vite. Phase 0 scaffold started with FastAPI health API, React shell, WorkerHost, ModuleRegistry, OffscreenCanvas render-worker proof, Docker Compose, and CI.
 - 2026-05-01 - Project rules and planning baseline created for Jarvis Prime.

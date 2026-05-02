@@ -339,13 +339,15 @@ a {
 }
 
 .icon-button:focus-visible,
-.theme-option:focus-visible {
+.theme-option:focus-visible,
+.language-option:focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
 }
 
 .icon-button:active,
-.theme-option:active {
+.theme-option:active,
+.language-option:active {
   transform: translateY(1px);
 }
 
@@ -362,7 +364,8 @@ a {
   background: currentColor;
 }
 
-.theme-switcher {
+.theme-switcher,
+.language-switcher {
   display: flex;
   min-width: 0;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -376,10 +379,10 @@ a {
     0 0 22px rgba(96, 165, 250, 0.08);
 }
 
-.theme-option {
+.theme-option,
+.language-option {
   display: grid;
   place-items: center;
-  width: 34px;
   height: 34px;
   border: 0;
   border-radius: 999px;
@@ -398,11 +401,25 @@ a {
     transform 160ms ease;
 }
 
-.theme-option:hover {
+.theme-option {
+  width: 34px;
+  font-size: 17px;
+}
+
+.language-option {
+  min-width: 42px;
+  font-size: 11px;
+  letter-spacing: 0;
+  padding: 0 10px;
+}
+
+.theme-option:hover,
+.language-option:hover {
   color: var(--text-primary);
 }
 
-.theme-option[aria-pressed="true"] {
+.theme-option[aria-pressed="true"],
+.language-option[aria-pressed="true"] {
   background:
     radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.2), transparent 52%),
     var(--surface-active);

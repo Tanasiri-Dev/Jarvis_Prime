@@ -23,6 +23,7 @@ Completed baseline items:
 - React shell, WorkerHost, ModuleRegistry, and OffscreenCanvas render-worker proof added.
 - Docker Compose and CI scaffold added.
 - Engineering tool prototype is expanding from reviewed option notes dated May 2026.
+- Internationalization foundation started for English, Thai, and Simplified Chinese.
 
 ---
 
@@ -172,10 +173,10 @@ Goal: make Jarvis Prime usable for multilingual factory teams.
 
 Deliverables:
 
-- Frontend translation dictionary and locale switcher.
-- Initial languages: English and Thai.
+- Frontend translation dictionary and locale switcher. (Foundation implemented)
+- Initial languages: English, Thai, and Simplified Chinese. (Foundation implemented)
 - Locale-aware date, time, number, and WorkWeek labels.
-- Persisted user language preference.
+- Persisted user language preference. (Foundation implemented with `jarvis-prime.locale`)
 - Translation coverage for navigation, tool labels, status labels, and common validation messages.
 
 Acceptance:
