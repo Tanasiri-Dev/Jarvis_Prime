@@ -8,6 +8,9 @@ import type {
   DurationResultPayload,
   FactoryClockRequestPayload,
   FactoryClockResultPayload,
+  OeeCalculateRequestPayload,
+  OeeCalculateResultPayload,
+  OeeStatus,
   PublicHolidayLookupItem,
   PublicHolidayLookupMonth,
   PublicHolidayLookupRequestPayload,
@@ -1291,6 +1294,141 @@ function calculateCapacityPlan(payload: CapacityPlanRequestPayload): CapacityPla
   };
 }
 
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, value));
+}
+
+function calculateOee(payload: OeeCalculateRequestPayload): OeeCalculateResultPayload {
+  const plannedProductionMinutes = Number(payload.plannedProductionMinutes);
+  const downtimeMinutes = Number(payload.downtimeMinutes);
+  const targetUph = Number(payload.targetUph);
+  const totalCount = Number(payload.totalCount);
+  const goodCount = Number(payload.goodCount);
+  const values = [plannedProductionMinutes, downtimeMinutes, targetUph, totalCount, goodCount];
+
+  if (values.some((value) => !Number.isFinite(value))) {
+    throw new Error("Enter valid numeric values for OEE calculation.");
+  }
+
+  if (values.some((value) => value < 0)) {
+    throw new Error("OEE inputs cannot be negative.");
+  }
+
+  if (goodCount > totalCount) {
+    throw new Error("Good count cannot be greater than total count.");
+  }
+
+  const runMinutes = Math.max(0, plannedProductionMinutes - downtimeMinutes);
+  const plannedHours = plannedProductionMinutes / 60;
+  const runHours = runMinutes / 60;
+  const idealTotalCount = targetUph * runHours;
+  const rejectCount = Math.max(0, totalCount - goodCount);
+  const availabilityPercent =
+    plannedProductionMinutes > 0 ? clampPercent((runMinutes / plannedProductionMinutes) * 100) : 0;
+  const performancePercent = idealTotalCount > 0 ? clampPercent((totalCount / idealTotalCount) * 100) : 0;
+  const qualityPercent = totalCount > 0 ? clampPercent((goodCount / totalCount) * 100) : 0;
+  const oeePercent = (availabilityPercent * performancePercent * qualityPercent) / 10000;
+  const lostUnitsFromDowntime = targetUph * (downtimeMinutes / 60);
+
+  let status: OeeStatus = "info";
+
+  if (plannedProductionMinutes > 0 && totalCount > 0 && targetUph > 0) {
+    status =
+      oeePercent >= 85
+        ? "world-class"
+        : oeePercent >= 75
+          ? "healthy"
+          : oeePercent >= 60
+            ? "watch"
+            : "risk";
+  }
+
+  const downtimeReason = payload.downtimeReason.trim() || "Not specified";
+  const recommendations: string[] = [];
+
+  if (availabilityPercent < 90) {
+    recommendations.push("Prioritize downtime recovery and validate the top downtime reason before shift handover.");
+  }
+
+  if (performancePercent < 90) {
+    recommendations.push("Compare actual cycle time against target UPH and check minor stops or speed loss.");
+  }
+
+  if (qualityPercent < 98) {
+    recommendations.push("Review reject categories and confirm whether scrap is concentrated by tool, recipe, or operator.");
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push("OEE is healthy. Keep monitoring availability, speed loss, and quality trend by shift.");
+  }
+
+  const summary =
+    status === "world-class"
+      ? "OEE is world-class for this production window."
+      : status === "healthy"
+        ? "OEE is healthy, with room to tighten losses."
+        : status === "watch"
+          ? "OEE is below target. Watch availability, speed, and quality before the next run."
+          : status === "risk"
+            ? "OEE needs attention. Attack the largest loss bucket first."
+            : "Add planned time, output, and target UPH to calculate OEE.";
+
+  return {
+    plannedProductionMinutes,
+    runMinutes,
+    downtimeMinutes,
+    targetUph,
+    totalCount,
+    goodCount,
+    rejectCount,
+    availabilityPercent,
+    performancePercent,
+    qualityPercent,
+    oeePercent,
+    lostUnitsFromDowntime,
+    status,
+    summary,
+    downtimeReason,
+    metrics: [
+      {
+        label: "OEE",
+        value: formatPercent(oeePercent),
+        tone: oeePercent >= 75 ? "good" : oeePercent >= 60 ? "warning" : "danger",
+      },
+      {
+        label: "Availability",
+        value: formatPercent(availabilityPercent),
+        tone: availabilityPercent >= 90 ? "good" : availabilityPercent >= 80 ? "warning" : "danger",
+      },
+      {
+        label: "Performance",
+        value: formatPercent(performancePercent),
+        tone: performancePercent >= 90 ? "good" : performancePercent >= 80 ? "warning" : "danger",
+      },
+      {
+        label: "Quality",
+        value: formatPercent(qualityPercent),
+        tone: qualityPercent >= 98 ? "good" : qualityPercent >= 95 ? "warning" : "danger",
+      },
+      {
+        label: "Run window",
+        value: formatDurationSeconds(runMinutes * 60),
+        tone: "neutral",
+      },
+      {
+        label: "Lost units",
+        value: formatNumber(lostUnitsFromDowntime),
+        tone: lostUnitsFromDowntime > targetUph * plannedHours * 0.1 ? "warning" : "neutral",
+      },
+    ],
+    recommendedActions: recommendations,
+  };
+}
+
 const monthFormatter = new Intl.DateTimeFormat("en-US", {
   month: "long",
   year: "numeric",
@@ -1466,6 +1604,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:capacity-plan") {
       const payload = calculateCapacityPlan(message.payload as CapacityPlanRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:capacity-plan:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:oee-calculate") {
+      const payload = calculateOee(message.payload as OeeCalculateRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:oee-calculate:result", payload });
       return;
     }
 

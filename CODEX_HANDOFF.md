@@ -112,6 +112,10 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Calculates staffed tools, net production window, total capacity, capacity gap, load percent, required tools, required run hours, and takt.
   - Designed for Planner and Manufacturing Engineer use cases.
   - Uses `tool:capacity-plan` in `compute-worker`.
+- OEE / Downtime Calculator
+  - Calculates Availability, Performance, Quality, OEE, run window, lost units, reject count, and top downtime reason.
+  - Designed for Manufacturing Engineer, Planner, and Operator use cases.
+  - Uses `tool:oee-calculate` in `compute-worker`.
 
 ## Implemented Planner Tools
 
@@ -119,8 +123,10 @@ Route: `http://127.0.0.1:5173/#public-holidays`
 
 - Public Holidays
   - Added as a left-side primary navigation item named `Holidays`.
-  - Looks up public holidays by seeded city presets: Bangkok, Durham NC, Los Angeles, Shanghai, Rome, and Tokyo.
+  - Defaults to `United States (US)` because Thailand coverage is incomplete.
+  - Looks up public holidays by seeded city presets: United States, Durham NC, Bangkok, Shanghai, Rome, Tokyo, and Los Angeles.
   - Uses Nager.Date public holiday API and performs city/subdivision filtering plus month grouping in `compute-worker`.
+  - Month count badges and current-month highlight render through `render-worker` canvas overlays that resize with the page/sidebar.
   - Uses `tool:public-holidays` in `compute-worker`.
 
 ## UI System Notes
@@ -139,27 +145,16 @@ Route: `http://127.0.0.1:5173/#public-holidays`
 
 ## Recommended Next Tool
 
-Add `OEE / downtime calculator` next, then `SPC quick helper`.
+Add `SPC quick helper` next.
 
 Suggested first fields:
 
-- Planned production time
-- Downtime minutes
-- Ideal cycle time or target UPH
-- Total count
-- Good count
-- Downtime reason summary
-
-Suggested implementation pattern:
-
-1. Add `oee-calculator` to `ActiveTool`.
-2. Add item to `toolOptions` under `Manufacturing` for Engineer and Planner.
-3. Add request/result types in `frontend/src/core/worker-messages.ts`.
-4. Add `tool:oee-calculate` handler in `frontend/src/workers/compute-worker.ts`.
-5. Return Availability, Performance, Quality, OEE, top downtime reason, and recommended actions.
-6. Add export/copy result after the calculation is stable.
-7. Run `npm run typecheck` and `npm run build`.
-8. Commit and push.
+- Sample values
+- Upper and lower spec limits
+- Optional target value
+- Subgroup size
+- Cp, Cpk, mean, standard deviation, min, max
+- Simple risk summary and recommended actions
 
 ## Latest Working Verification
 

@@ -2299,7 +2299,8 @@ a {
   grid-template-columns: repeat(4, minmax(140px, 1fr));
 }
 
-.yield-hero {
+.yield-hero,
+.oee-hero {
   display: grid;
   gap: 10px;
   min-height: 190px;
@@ -2349,22 +2350,30 @@ a {
 }
 
 .yield-hero span,
-.yield-hero p {
+.yield-hero p,
+.oee-hero span,
+.oee-hero p {
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 800;
   margin: 0;
 }
 
-.yield-hero span {
+.yield-hero span,
+.oee-hero span {
   text-transform: uppercase;
 }
 
-.yield-hero strong {
+.yield-hero strong,
+.oee-hero strong {
   color: var(--text-primary);
   font-size: clamp(42px, 6vw, 74px);
   line-height: 1;
   overflow-wrap: anywhere;
+}
+
+.oee-reason-field {
+  grid-column: span 2;
 }
 
 .yield-status-on-target {
@@ -2388,6 +2397,19 @@ a {
 }
 
 .capacity-status-short {
+  border-color: color-mix(in srgb, #fb7185, transparent 22%);
+}
+
+.oee-status-world-class,
+.oee-status-healthy {
+  border-color: color-mix(in srgb, var(--success), transparent 30%);
+}
+
+.oee-status-watch {
+  border-color: color-mix(in srgb, #facc15, transparent 25%);
+}
+
+.oee-status-risk {
   border-color: color-mix(in srgb, #fb7185, transparent 22%);
 }
 

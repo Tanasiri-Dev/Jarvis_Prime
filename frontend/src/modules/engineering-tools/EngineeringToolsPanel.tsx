@@ -5,6 +5,7 @@ import type {
   CapacityPlanResultPayload,
   DurationResultPayload,
   FactoryClockResultPayload,
+  OeeCalculateResultPayload,
   RenderStatusName,
   TimeUtilityMode,
   TimeUtilityResultPayload,
@@ -78,6 +79,7 @@ type ActiveTool =
   | "unit-converter"
   | "yield-calculator"
   | "capacity-planner"
+  | "oee-calculator"
   | "online-alarm"
   | "countdown-timer";
 
@@ -95,6 +97,7 @@ const toolOptions: ToolOption[] = [
   { id: "unit-converter", label: "Unit Converter", category: "Unit Convert", audiences: ["engineer"] },
   { id: "yield-calculator", label: "Yield / Scrap / UPH", category: "Manufacturing", audiences: ["engineer", "planner"] },
   { id: "capacity-planner", label: "Capacity / Takt Planner", category: "Manufacturing", audiences: ["planner", "engineer"] },
+  { id: "oee-calculator", label: "OEE / Downtime", category: "Manufacturing", audiences: ["engineer", "planner", "operator"] },
   { id: "alarm-decoder", label: "Alarm Decoder", category: "Decoder", audiences: ["engineer", "operator"] },
 ];
 
@@ -681,6 +684,12 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [capacityTargetUph, setCapacityTargetUph] = useState(80);
   const [capacityEfficiency, setCapacityEfficiency] = useState(85);
   const [capacityDowntimeMinutes, setCapacityDowntimeMinutes] = useState(60);
+  const [oeePlannedMinutes, setOeePlannedMinutes] = useState(480);
+  const [oeeDowntimeMinutes, setOeeDowntimeMinutes] = useState(45);
+  const [oeeTargetUph, setOeeTargetUph] = useState(120);
+  const [oeeTotalCount, setOeeTotalCount] = useState(820);
+  const [oeeGoodCount, setOeeGoodCount] = useState(790);
+  const [oeeDowntimeReason, setOeeDowntimeReason] = useState("Material wait");
   const [workweekMonthOffset, setWorkweekMonthOffset] = useState(0);
   const [toolFilter, setToolFilter] = useState<ToolFilter>("all");
   const [alarmClockNow, setAlarmClockNow] = useState(() => new Date());
@@ -731,6 +740,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [unitResult, setUnitResult] = useState<UnitConvertResultPayload | null>(null);
   const [yieldResult, setYieldResult] = useState<YieldCalculateResultPayload | null>(null);
   const [capacityResult, setCapacityResult] = useState<CapacityPlanResultPayload | null>(null);
+  const [oeeResult, setOeeResult] = useState<OeeCalculateResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
   const [weekRangeStatus, setWeekRangeStatus] = useState<ToolStatus>("idle");
   const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
@@ -741,6 +751,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [unitStatus, setUnitStatus] = useState<ToolStatus>("idle");
   const [yieldStatus, setYieldStatus] = useState<ToolStatus>("idle");
   const [capacityStatus, setCapacityStatus] = useState<ToolStatus>("idle");
+  const [oeeStatus, setOeeStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [weekRangeError, setWeekRangeError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
@@ -751,6 +762,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [unitError, setUnitError] = useState<string | null>(null);
   const [yieldError, setYieldError] = useState<string | null>(null);
   const [capacityError, setCapacityError] = useState<string | null>(null);
+  const [oeeError, setOeeError] = useState<string | null>(null);
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
   const [stopwatchBaseMs, setStopwatchBaseMs] = useState(0);
@@ -936,6 +948,24 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       capacityPlannedHours,
       capacityTargetUph,
       capacityTools,
+    ],
+  );
+  const oeePayload = useMemo(
+    () => ({
+      plannedProductionMinutes: oeePlannedMinutes,
+      downtimeMinutes: oeeDowntimeMinutes,
+      targetUph: oeeTargetUph,
+      totalCount: oeeTotalCount,
+      goodCount: oeeGoodCount,
+      downtimeReason: oeeDowntimeReason,
+    }),
+    [
+      oeeDowntimeMinutes,
+      oeeDowntimeReason,
+      oeeGoodCount,
+      oeePlannedMinutes,
+      oeeTargetUph,
+      oeeTotalCount,
     ],
   );
   const filteredToolOptions = useMemo(
@@ -1325,6 +1355,38 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [capacityPayload, workerHost]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setOeeStatus("running");
+    setOeeError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<OeeCalculateResultPayload>("compute", "tool:oee-calculate", oeePayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setOeeResult(payload);
+          setOeeStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setOeeStatus("error");
+          setOeeError(reason instanceof Error ? reason.message : "Unable to calculate OEE.");
+        });
+    }, 120);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [oeePayload, workerHost]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -3083,6 +3145,131 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           </div>
         </article>
         ) : null}
+
+        {activeTool === "oee-calculator" ? (
+        <article className="panel tool-card oee-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Manufacturing</p>
+              <h3>OEE / Downtime Calculator</h3>
+            </div>
+            <StatusChip status={oeeStatus} workerHost={workerHost} />
+          </div>
+
+          <div className="tool-form oee-form">
+            <label>
+              <span>Planned minutes</span>
+              <input
+                min="0"
+                type="number"
+                value={oeePlannedMinutes}
+                onChange={(event) => setOeePlannedMinutes(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Downtime minutes</span>
+              <input
+                min="0"
+                type="number"
+                value={oeeDowntimeMinutes}
+                onChange={(event) => setOeeDowntimeMinutes(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Target UPH</span>
+              <input
+                min="0"
+                type="number"
+                value={oeeTargetUph}
+                onChange={(event) => setOeeTargetUph(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Total count</span>
+              <input
+                min="0"
+                type="number"
+                value={oeeTotalCount}
+                onChange={(event) => setOeeTotalCount(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Good count</span>
+              <input
+                min="0"
+                type="number"
+                value={oeeGoodCount}
+                onChange={(event) => setOeeGoodCount(Number(event.target.value))}
+              />
+            </label>
+
+            <label className="oee-reason-field">
+              <span>Downtime reason</span>
+              <input
+                type="text"
+                value={oeeDowntimeReason}
+                onChange={(event) => setOeeDowntimeReason(event.target.value)}
+              />
+            </label>
+          </div>
+
+          {oeeError ? <div className="error-note">{oeeError}</div> : null}
+
+          <div className={`oee-hero oee-status-${oeeResult?.status ?? "info"}`} aria-live="polite">
+            <span>Overall equipment effectiveness</span>
+            <strong>{oeeResult ? oeeResult.metrics[0].value : "--"}</strong>
+            <p>{oeeResult?.summary ?? "Enter production window and output data to calculate OEE."}</p>
+          </div>
+
+          <div className="yield-metric-grid">
+            {oeeResult?.metrics.map((metric) => (
+              <article className={`yield-metric-card yield-tone-${metric.tone}`} key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+              </article>
+            )) ?? null}
+          </div>
+
+          <div className="alarm-detail-grid">
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Loss summary</span>
+                <strong>{oeeResult?.status ?? "--"}</strong>
+              </div>
+              <div className="yield-reconcile-list">
+                <div>
+                  <span>Run minutes</span>
+                  <strong>{oeeResult ? `${oeeResult.runMinutes} min` : "--"}</strong>
+                </div>
+                <div>
+                  <span>Reject count</span>
+                  <strong>{oeeResult?.rejectCount ?? "--"}</strong>
+                </div>
+                <div>
+                  <span>Top downtime</span>
+                  <strong>{oeeResult?.downtimeReason ?? "--"}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Recommended actions</span>
+                <strong>{oeeResult?.recommendedActions.length ?? 0}</strong>
+              </div>
+              <ol className="alarm-action-list">
+                {oeeResult?.recommendedActions.map((action) => (
+                  <li key={action}>{action}</li>
+                )) ?? null}
+              </ol>
+            </section>
+          </div>
+        </article>
+        ) : null}
         </div>
 
         <aside className="panel tool-library">
@@ -3121,7 +3308,6 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
 
           <p className="eyebrow library-subtitle">Coming next</p>
           <ul>
-            <li>OEE / downtime calculator</li>
             <li>SPC quick helper</li>
             <li>CSV and log quick parser</li>
           </ul>

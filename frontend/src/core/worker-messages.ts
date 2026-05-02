@@ -273,6 +273,43 @@ export interface CapacityPlanResultPayload {
   recommendedActions: string[];
 }
 
+export interface OeeCalculateRequestPayload {
+  plannedProductionMinutes: number;
+  downtimeMinutes: number;
+  targetUph: number;
+  totalCount: number;
+  goodCount: number;
+  downtimeReason: string;
+}
+
+export type OeeStatus = "world-class" | "healthy" | "watch" | "risk" | "info";
+
+export interface OeeMetric {
+  label: string;
+  value: string;
+  tone: "good" | "warning" | "danger" | "neutral";
+}
+
+export interface OeeCalculateResultPayload {
+  plannedProductionMinutes: number;
+  runMinutes: number;
+  downtimeMinutes: number;
+  targetUph: number;
+  totalCount: number;
+  goodCount: number;
+  rejectCount: number;
+  availabilityPercent: number;
+  performancePercent: number;
+  qualityPercent: number;
+  oeePercent: number;
+  lostUnitsFromDowntime: number;
+  status: OeeStatus;
+  summary: string;
+  downtimeReason: string;
+  metrics: OeeMetric[];
+  recommendedActions: string[];
+}
+
 export interface PublicHolidayApiItem {
   date: string;
   localName: string;
