@@ -1204,15 +1204,15 @@ a {
 
 .inline-checkmark::after {
   position: absolute;
-  top: 4px;
-  left: 5px;
+  top: 50%;
+  left: 50%;
   width: 5px;
   height: 9px;
   border: solid #06101c;
   border-width: 0 2.5px 2.5px 0;
   content: "";
   opacity: 0;
-  transform: rotate(40deg);
+  transform: translate(-50%, -58%) rotate(40deg);
   transform-origin: center;
 }
 
