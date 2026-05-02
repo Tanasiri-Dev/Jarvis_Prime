@@ -458,6 +458,78 @@ a {
   font-size: 32px;
 }
 
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.028) 46%, rgba(255, 255, 255, 0.06)),
+    var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+  color: var(--text-muted);
+  padding: 16px 18px;
+}
+
+.footer-kicker,
+.footer-copy,
+.footer-copyright {
+  margin: 0;
+}
+
+.footer-kicker {
+  background: var(--heading-gradient);
+  background-clip: text;
+  color: transparent;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.footer-copy,
+.footer-copyright {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.footer-copy {
+  margin-top: 5px;
+}
+
+.footer-right {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.footer-social {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.footer-social a {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 10px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease;
+}
+
+.footer-social a:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 0 22px var(--glow-cyan);
+  color: var(--brand-text);
+}
+
 .diagnostics {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
@@ -2348,6 +2420,19 @@ a {
   .tools-grid,
   .diagnostics {
     grid-template-columns: 1fr;
+  }
+
+  .app-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .footer-right {
+    justify-items: start;
+  }
+
+  .footer-social {
+    justify-content: flex-start;
   }
 
   .tool-library {

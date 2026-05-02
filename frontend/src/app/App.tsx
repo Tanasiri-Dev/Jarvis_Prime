@@ -46,6 +46,21 @@ const routes: Array<{ id: AppRoute; href: string; label: string; title: string; 
   },
 ];
 
+const socialLinks = [
+  {
+    href: "https://github.com/Tanasiri-Dev/Jarvis_Prime",
+    label: "GitHub",
+  },
+  {
+    href: "https://x.com",
+    label: "X",
+  },
+  {
+    href: "https://discord.com",
+    label: "Discord",
+  },
+];
+
 function isThemeMode(value: string | null): value is ThemeMode {
   return themeOptions.some((option) => option.id === value);
 }
@@ -208,6 +223,33 @@ export function App() {
         {activeRoute === "diagnostics" ? (
           <DiagnosticsPanel theme={theme} workerHost={workerHost} />
         ) : null}
+
+        <footer className="app-footer">
+          <div>
+            <p className="footer-kicker">AI Code with Human Control</p>
+            <p className="footer-copy">
+              Worker-first tools for manufacturing engineers, planners, and factory teams.
+            </p>
+          </div>
+
+          <div className="footer-right">
+            <nav className="footer-social" aria-label="Jarvis Prime links">
+              {socialLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+            <p className="footer-copyright">
+              (C) 2026 Tanasiri-Jarvis Prime. All Right Reserve.
+            </p>
+          </div>
+        </footer>
       </main>
     </div>
   );
