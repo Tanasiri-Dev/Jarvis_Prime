@@ -132,6 +132,12 @@ Route: `http://127.0.0.1:5173/#public-holidays`
   - Uses Nager.Date public holiday API and performs city/subdivision filtering plus month grouping in `compute-worker`.
   - Month count badges and current-month highlight render through `render-worker` canvas overlays that resize with the page/sidebar.
   - Uses `tool:public-holidays` in `compute-worker`.
+- Meeting Room
+  - Added as a left-side primary navigation item named `Meeting Room`.
+  - Mock planner calendar for Phuket, Pattaya, Singha, and Chang rooms.
+  - Supports date, start time, duration, room, owner, and purpose inputs.
+  - Calculates availability, conflicts, tight windows, recommended room, timeline, and calendar cards in `compute-worker`.
+  - Uses `planner:meeting-rooms` in `compute-worker`.
 
 ## UI System Notes
 
@@ -149,16 +155,14 @@ Route: `http://127.0.0.1:5173/#public-holidays`
 
 ## Recommended Next Tool
 
-Add `Meeting room calendar mockup` next.
+Add `CSV and log quick parser` after sample logs are available.
 
 Suggested first fields:
 
-- Meeting rooms: Phuket, Pattaya, Singha, Chang
-- Date and time range
-- Owner / purpose
-- Room availability status
-- Conflict detection
-- Simple planner-style calendar cards
+- Raw log text or uploaded sample log
+- Pattern hints for timestamp, tool id, alarm id, and severity
+- Parsed rows with filtering
+- Export to CSV / Excel
 
 ## Latest Working Verification
 

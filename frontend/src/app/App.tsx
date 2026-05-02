@@ -9,6 +9,8 @@ import { DiagnosticsModule } from "../modules/diagnostics/DiagnosticsModule";
 import { DiagnosticsPanel } from "../modules/diagnostics/DiagnosticsPanel";
 import { EngineeringToolsModule } from "../modules/engineering-tools/EngineeringToolsModule";
 import { EngineeringToolsPanel } from "../modules/engineering-tools/EngineeringToolsPanel";
+import { MeetingRoomModule } from "../modules/meeting-room/MeetingRoomModule";
+import { MeetingRoomPanel } from "../modules/meeting-room/MeetingRoomPanel";
 import { PublicHolidayPanel } from "../modules/public-holidays/PublicHolidayPanel";
 import { PublicHolidaysModule } from "../modules/public-holidays/PublicHolidaysModule";
 import "./App.css";
@@ -22,7 +24,12 @@ const themeOptions = [
 ] as const;
 
 type ThemeMode = (typeof themeOptions)[number]["id"];
-type AppRoute = "command-center" | "engineering-tools" | "public-holidays" | "diagnostics";
+type AppRoute =
+  | "command-center"
+  | "engineering-tools"
+  | "meeting-room"
+  | "public-holidays"
+  | "diagnostics";
 
 const routes: Array<{ id: AppRoute; href: string; label: string; title: string; eyebrow: string }> = [
   {
@@ -44,6 +51,13 @@ const routes: Array<{ id: AppRoute; href: string; label: string; title: string; 
     href: "#public-holidays",
     label: "Holidays",
     title: "Public Holidays",
+    eyebrow: "Planner calendar",
+  },
+  {
+    id: "meeting-room",
+    href: "#meeting-room",
+    label: "Meeting Room",
+    title: "Meeting Room",
     eyebrow: "Planner calendar",
   },
   {
@@ -90,6 +104,7 @@ function createRegistry(): ModuleRegistry {
   registry.register(new DiagnosticsModule());
   registry.register(new EngineeringToolsModule());
   registry.register(new PublicHolidaysModule());
+  registry.register(new MeetingRoomModule());
   return registry;
 }
 
@@ -231,6 +246,8 @@ export function App() {
         {activeRoute === "engineering-tools" ? <EngineeringToolsPanel workerHost={workerHost} /> : null}
 
         {activeRoute === "public-holidays" ? <PublicHolidayPanel workerHost={workerHost} /> : null}
+
+        {activeRoute === "meeting-room" ? <MeetingRoomPanel workerHost={workerHost} /> : null}
 
         {activeRoute === "diagnostics" ? (
           <DiagnosticsPanel theme={theme} workerHost={workerHost} />

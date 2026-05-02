@@ -399,6 +399,67 @@ export interface PublicHolidayLookupResultPayload {
   }>;
 }
 
+export type MeetingRoomStatus = "available" | "busy" | "tight";
+
+export interface MeetingRoomBooking {
+  id: string;
+  roomId: string;
+  roomName: string;
+  title: string;
+  owner: string;
+  start: string;
+  end: string;
+  purpose: string;
+}
+
+export interface MeetingRoomRequestPayload {
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  selectedRoomId: string;
+  rooms: Array<{
+    id: string;
+    name: string;
+    capacity: number;
+    zone: string;
+  }>;
+  bookings: MeetingRoomBooking[];
+}
+
+export interface MeetingRoomAvailability {
+  roomId: string;
+  roomName: string;
+  capacity: number;
+  zone: string;
+  status: MeetingRoomStatus;
+  statusLabel: string;
+  nextAvailableLabel: string;
+  conflicts: MeetingRoomBooking[];
+  utilizationPercent: number;
+}
+
+export interface MeetingRoomResultPayload {
+  date: string;
+  requestStart: string;
+  requestEnd: string;
+  requestedRangeLabel: string;
+  selectedRoomId: string;
+  availableCount: number;
+  busyCount: number;
+  tightCount: number;
+  recommendedRoomId: string | null;
+  rooms: MeetingRoomAvailability[];
+  timeline: Array<{
+    hourLabel: string;
+    bookings: MeetingRoomBooking[];
+  }>;
+  metrics: Array<{
+    label: string;
+    value: string;
+    tone: "good" | "warning" | "danger" | "neutral";
+  }>;
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;

@@ -8,6 +8,11 @@ import type {
   DurationResultPayload,
   FactoryClockRequestPayload,
   FactoryClockResultPayload,
+  MeetingRoomAvailability,
+  MeetingRoomBooking,
+  MeetingRoomRequestPayload,
+  MeetingRoomResultPayload,
+  MeetingRoomStatus,
   OeeCalculateRequestPayload,
   OeeCalculateResultPayload,
   OeeStatus,
@@ -1674,6 +1679,158 @@ function calculatePublicHolidays(
   };
 }
 
+function parseMeetingDateTime(date: string, time: string): Date {
+  const parsed = new Date(`${date}T${time}:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("Enter a valid meeting date and start time.");
+  }
+
+  return parsed;
+}
+
+function formatMeetingTime(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function formatMeetingRange(start: Date, end: Date): string {
+  return `${formatMeetingTime(start)} - ${formatMeetingTime(end)}`;
+}
+
+function minutesBetween(start: Date, end: Date): number {
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+}
+
+function isMeetingOverlap(startA: Date, endA: Date, startB: Date, endB: Date): boolean {
+  return startA < endB && endA > startB;
+}
+
+function calculateNextAvailableLabel(
+  requestEnd: Date,
+  roomBookings: MeetingRoomBooking[],
+): string {
+  const futureBookings = roomBookings
+    .map((booking) => ({
+      ...booking,
+      startDate: new Date(booking.start),
+      endDate: new Date(booking.end),
+    }))
+    .filter((booking) => booking.endDate >= requestEnd)
+    .sort((left, right) => left.startDate.getTime() - right.startDate.getTime());
+
+  if (futureBookings.length === 0) {
+    return "Open after request";
+  }
+
+  const blocking = futureBookings.find((booking) => booking.startDate <= requestEnd);
+
+  if (blocking) {
+    return `After ${formatMeetingTime(blocking.endDate)}`;
+  }
+
+  return `Until ${formatMeetingTime(futureBookings[0].startDate)}`;
+}
+
+function calculateMeetingRooms(payload: MeetingRoomRequestPayload): MeetingRoomResultPayload {
+  const durationMinutes = Math.max(15, Number(payload.durationMinutes));
+  const requestStart = parseMeetingDateTime(payload.date, payload.startTime);
+  const requestEnd = new Date(requestStart.getTime() + durationMinutes * 60000);
+  const dayStart = new Date(`${payload.date}T00:00:00`);
+  const dayEnd = new Date(`${payload.date}T23:59:59`);
+  const dayBookings = payload.bookings.filter((booking) => {
+    const bookingStart = new Date(booking.start);
+    const bookingEnd = new Date(booking.end);
+
+    return bookingStart <= dayEnd && bookingEnd >= dayStart;
+  });
+
+  const rooms: MeetingRoomAvailability[] = payload.rooms.map((room) => {
+    const roomBookings = dayBookings.filter((booking) => booking.roomId === room.id);
+    const conflicts = roomBookings.filter((booking) =>
+      isMeetingOverlap(requestStart, requestEnd, new Date(booking.start), new Date(booking.end)),
+    );
+    const minutesBooked = roomBookings.reduce(
+      (total, booking) => total + minutesBetween(new Date(booking.start), new Date(booking.end)),
+      0,
+    );
+    const utilizationPercent = Math.min(100, Math.round((minutesBooked / (10 * 60)) * 100));
+    const hasNearbyBooking = roomBookings.some((booking) => {
+      const bookingStart = new Date(booking.start);
+      const bookingEnd = new Date(booking.end);
+      const gapBefore = minutesBetween(requestEnd, bookingStart);
+      const gapAfter = minutesBetween(bookingEnd, requestStart);
+
+      return (gapBefore > 0 && gapBefore <= 30) || (gapAfter > 0 && gapAfter <= 30);
+    });
+    let status: MeetingRoomStatus = "available";
+
+    if (conflicts.length > 0) {
+      status = "busy";
+    } else if (hasNearbyBooking || utilizationPercent >= 70) {
+      status = "tight";
+    }
+
+    return {
+      roomId: room.id,
+      roomName: room.name,
+      capacity: room.capacity,
+      zone: room.zone,
+      status,
+      statusLabel:
+        status === "available" ? "Available" : status === "tight" ? "Tight window" : "Conflict",
+      nextAvailableLabel: calculateNextAvailableLabel(requestEnd, roomBookings),
+      conflicts,
+      utilizationPercent,
+    };
+  });
+
+  const recommendedRoom = rooms.find((room) => room.status === "available") ?? null;
+  const timeline = Array.from({ length: 10 }, (_, index) => {
+    const hour = 8 + index;
+    const slotStart = new Date(`${payload.date}T${pad(hour)}:00:00`);
+    const slotEnd = new Date(slotStart.getTime() + 60 * 60000);
+
+    return {
+      hourLabel: `${pad(hour)}:00`,
+      bookings: dayBookings.filter((booking) =>
+        isMeetingOverlap(slotStart, slotEnd, new Date(booking.start), new Date(booking.end)),
+      ),
+    };
+  });
+
+  const availableCount = rooms.filter((room) => room.status === "available").length;
+  const busyCount = rooms.filter((room) => room.status === "busy").length;
+  const tightCount = rooms.filter((room) => room.status === "tight").length;
+
+  return {
+    date: payload.date,
+    requestStart: requestStart.toISOString(),
+    requestEnd: requestEnd.toISOString(),
+    requestedRangeLabel: formatMeetingRange(requestStart, requestEnd),
+    selectedRoomId: payload.selectedRoomId,
+    availableCount,
+    busyCount,
+    tightCount,
+    recommendedRoomId: recommendedRoom?.roomId ?? null,
+    rooms,
+    timeline,
+    metrics: [
+      { label: "Available", value: formatNumber(availableCount), tone: availableCount > 0 ? "good" : "danger" },
+      { label: "Conflicts", value: formatNumber(busyCount), tone: busyCount === 0 ? "good" : "warning" },
+      { label: "Tight", value: formatNumber(tightCount), tone: tightCount === 0 ? "neutral" : "warning" },
+      {
+        label: "Recommended",
+        value: recommendedRoom?.roomName ?? "No room",
+        tone: recommendedRoom ? "good" : "danger",
+      },
+    ],
+  };
+}
+
 scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
   const message = event.data;
 
@@ -1762,6 +1919,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
         message.payload as PublicHolidayLookupRequestPayload,
       );
       scope.postMessage({ id: message.id, type: "tool:public-holidays:result", payload });
+      return;
+    }
+
+    if (message.type === "planner:meeting-rooms") {
+      const payload = calculateMeetingRooms(message.payload as MeetingRoomRequestPayload);
+      scope.postMessage({ id: message.id, type: "planner:meeting-rooms:result", payload });
       return;
     }
 

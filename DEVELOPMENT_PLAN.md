@@ -122,6 +122,7 @@ Initial tools:
 - Recipe compare.
 - File checksum and metadata viewer.
 - Public holiday lookup by city or country. (Implemented in Phase 0 planner calendar route)
+- Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang. (Implemented in Phase 0 planner calendar route)
 
 Architecture:
 
@@ -313,8 +314,7 @@ Acceptance:
 
 ## Near-Term Tool Build Order
 
-1. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
-2. CSV and log quick parser after sample logs are available.
+1. CSV and log quick parser after sample logs are available.
 
 ---
 
