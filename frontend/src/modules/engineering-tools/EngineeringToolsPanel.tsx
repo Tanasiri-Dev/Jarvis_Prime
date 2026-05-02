@@ -1876,6 +1876,19 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
             </div>
           </div>
 
+          <div className="shortcut-helper" aria-label="Stopwatch keyboard shortcuts">
+            <div>
+              <span>Shortcuts</span>
+              <p>Use the keyboard while this tool is active. Lap trend compares each lap with the previous one.</p>
+            </div>
+            <div className="shortcut-key-grid">
+              <span><kbd>Space</kbd> Start / Stop</span>
+              <span><kbd>L</kbd> Lap</span>
+              <span><kbd>R</kbd> Reset</span>
+              <span><kbd>F</kbd> Full screen</span>
+            </div>
+          </div>
+
           <div className="history-panel">
             <div className="history-header">
               <span>History</span>
