@@ -85,6 +85,8 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Start/Stop/Lap/Reset plus Excel export.
   - Premium circular action buttons with color variants and shimmer effect.
   - Export is separated from the main stopwatch controls.
+  - Keyboard shortcuts are active on the Stopwatch tool: Space start/stop, L lap, R reset, F full screen.
+  - Lap history highlights faster, slower, and steady laps compared with the previous lap.
 - Alarm Decoder
   - Decodes pasted SECS/GEM-style alarm payloads such as `S5F1 ALCD=0x85 ALID=3001 ALTX="..."`.
   - Parses ALCD, ALID, ALTX, set/clear state, category, severity, and recommended actions.

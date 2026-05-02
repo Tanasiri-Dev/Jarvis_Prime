@@ -39,6 +39,8 @@ type StopwatchLap = {
   timestamp: string;
 };
 
+type StopwatchLapTrend = "first" | "faster" | "slower" | "steady";
+
 type OnlineAlarm = {
   id: number;
   hour: string;
@@ -396,6 +398,41 @@ function formatDuration(milliseconds: number): string {
   return `${pad(minutes)}:${pad(seconds)}.${pad(centiseconds)}`;
 }
 
+function getStopwatchLapTrend(laps: StopwatchLap[], index: number): StopwatchLapTrend {
+  const lap = laps[index];
+  const previousLap = laps[index + 1];
+
+  if (!lap || !previousLap) {
+    return "first";
+  }
+
+  if (lap.lapMs < previousLap.lapMs) {
+    return "faster";
+  }
+
+  if (lap.lapMs > previousLap.lapMs) {
+    return "slower";
+  }
+
+  return "steady";
+}
+
+function formatLapTrend(trend: StopwatchLapTrend): string {
+  if (trend === "faster") {
+    return "Faster";
+  }
+
+  if (trend === "slower") {
+    return "Slower";
+  }
+
+  if (trend === "steady") {
+    return "Steady";
+  }
+
+  return "First";
+}
+
 function formatClockTime(date: Date): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
@@ -515,15 +552,18 @@ function escapeExcelCell(value: string): string {
 }
 
 function exportStopwatchHistory(laps: StopwatchLap[]): void {
-  const rows = laps.map(
-    (lap) => `
+  const rows = laps.map((lap, index) => {
+    const trend = getStopwatchLapTrend(laps, index);
+
+    return `
       <tr>
         <td>${lap.lapNumber}</td>
         <td>${escapeExcelCell(lap.timestamp)}</td>
         <td>${escapeExcelCell(formatDuration(lap.lapMs))}</td>
         <td>${escapeExcelCell(formatDuration(lap.totalMs))}</td>
-      </tr>`,
-  );
+        <td>${escapeExcelCell(formatLapTrend(trend))}</td>
+      </tr>`;
+  });
   const worksheet = `<!doctype html>
     <html>
       <head>
@@ -542,6 +582,7 @@ function exportStopwatchHistory(laps: StopwatchLap[]): void {
               <th>Timestamp</th>
               <th>Lap Time</th>
               <th>Total Time</th>
+              <th>Trend</th>
             </tr>
           </thead>
           <tbody>${rows.join("")}</tbody>
@@ -662,6 +703,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [stopwatchBaseMs, setStopwatchBaseMs] = useState(0);
   const [stopwatchNowMs, setStopwatchNowMs] = useState(Date.now());
   const [stopwatchHistory, setStopwatchHistory] = useState<StopwatchLap[]>([]);
+  const stopwatchToolRef = useRef<HTMLElement | null>(null);
   const alarmIdRef = useRef(3);
 
   const elapsedMs =
@@ -1268,6 +1310,71 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
     });
   };
 
+  const toggleStopwatchFullscreen = () => {
+    const element = stopwatchToolRef.current;
+
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+
+    if (element) {
+      void element.requestFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    if (activeTool !== "stopwatch") {
+      return;
+    }
+
+    const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName;
+
+      if (
+        target?.isContentEditable ||
+        tagName === "INPUT" ||
+        tagName === "SELECT" ||
+        tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      if (event.key === " ") {
+        event.preventDefault();
+        if (isStopwatchRunning) {
+          stopStopwatch();
+        } else {
+          startStopwatch();
+        }
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      if (key === "l") {
+        event.preventDefault();
+        recordLap();
+        return;
+      }
+
+      if (key === "r") {
+        event.preventDefault();
+        resetStopwatch();
+        return;
+      }
+
+      if (key === "f") {
+        event.preventDefault();
+        toggleStopwatchFullscreen();
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [activeTool, elapsedMs, isStopwatchRunning, stopwatchStartedAt]);
+
   const addTimezoneCard = () => {
     const timezone = newTimezone.timezone.trim();
 
@@ -1734,7 +1841,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
         ) : null}
 
         {activeTool === "stopwatch" ? (
-        <article className="panel tool-card stopwatch-tool">
+        <article ref={stopwatchToolRef} className="panel tool-card stopwatch-tool">
           <div className="tool-card-header">
             <div>
               <p className="eyebrow">Manufacturing</p>
@@ -1783,17 +1890,27 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                       <th>Timestamp</th>
                       <th>Lap time</th>
                       <th>Total</th>
+                      <th>Trend</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {stopwatchHistory.map((lap) => (
-                      <tr key={lap.id}>
-                        <td>{lap.lapNumber}</td>
-                        <td>{lap.timestamp}</td>
-                        <td>{formatDuration(lap.lapMs)}</td>
-                        <td>{formatDuration(lap.totalMs)}</td>
-                      </tr>
-                    ))}
+                    {stopwatchHistory.map((lap, index) => {
+                      const trend = getStopwatchLapTrend(stopwatchHistory, index);
+
+                      return (
+                        <tr className={`lap-row lap-${trend}`} key={lap.id}>
+                          <td>{lap.lapNumber}</td>
+                          <td>{lap.timestamp}</td>
+                          <td>{formatDuration(lap.lapMs)}</td>
+                          <td>{formatDuration(lap.totalMs)}</td>
+                          <td>
+                            <span className={`lap-trend lap-trend-${trend}`}>
+                              {formatLapTrend(trend)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

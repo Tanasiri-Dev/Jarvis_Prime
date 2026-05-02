@@ -314,13 +314,12 @@ Acceptance:
 ## Near-Term Tool Build Order
 
 1. OEE / downtime calculator.
-2. Stopwatch keyboard shortcuts, full screen, and lap performance highlighting.
-3. WorkWeek to date range converter.
-4. Expanded duration/time utilities: sum hours, add/subtract hours, work hours, count dates.
-5. Public holiday lookup by city.
-6. SPC quick helper.
-7. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
-8. CSV and log quick parser after sample logs are available.
+2. WorkWeek to date range converter.
+3. Expanded duration/time utilities: sum hours, add/subtract hours, work hours, count dates.
+4. Public holiday lookup by city.
+5. SPC quick helper.
+6. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
+7. CSV and log quick parser after sample logs are available.
 
 ---
 

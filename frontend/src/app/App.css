@@ -22,6 +22,7 @@
   --accent-soft: rgba(45, 212, 191, 0.13);
   --brand-border: rgba(45, 212, 191, 0.42);
   --brand-text: #c7fff2;
+  --success: #22c55e;
   --glow-cyan: rgba(45, 212, 191, 0.32);
   --glow-gold: rgba(234, 179, 8, 0.18);
   --heading-gradient: linear-gradient(90deg, #f8fbff 0%, #7ca2ff 42%, #b58f9c 72%, #ff8d3d 100%);
@@ -60,6 +61,7 @@
   --accent-soft: rgba(5, 150, 105, 0.11);
   --brand-border: rgba(5, 150, 105, 0.28);
   --brand-text: #047857;
+  --success: #16a34a;
   --glow-cyan: rgba(14, 165, 233, 0.22);
   --glow-gold: rgba(245, 158, 11, 0.14);
   --heading-gradient: linear-gradient(90deg, #0f172a 0%, #2563eb 44%, #8b5cf6 72%, #ea580c 100%);
@@ -96,6 +98,7 @@
   --accent-soft: rgba(45, 212, 191, 0.14);
   --brand-border: rgba(45, 212, 191, 0.36);
   --brand-text: #ccfbf1;
+  --success: #22c55e;
   --glow-cyan: rgba(45, 212, 191, 0.3);
   --glow-gold: rgba(245, 158, 11, 0.16);
   --heading-gradient: linear-gradient(90deg, #f8fafc 0%, #4f7cff 42%, #b084a0 72%, #fb923c 100%);
@@ -1320,6 +1323,26 @@ a {
   letter-spacing: 0;
 }
 
+.stopwatch-tool:fullscreen {
+  width: 100vw;
+  min-height: 100vh;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 50% 18%, var(--accent-soft), transparent 34%),
+    var(--page-bg);
+  padding: 28px;
+}
+
+.stopwatch-tool:fullscreen .stopwatch-face {
+  min-height: 42vh;
+}
+
+.stopwatch-tool:fullscreen .stopwatch-face strong {
+  font-size: clamp(72px, 14vw, 180px);
+}
+
 .stopwatch-actions {
   display: grid;
   grid-template-columns: 140px minmax(0, 1fr) 140px;
@@ -1530,6 +1553,54 @@ a {
 
 .history-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.lap-row td {
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.lap-faster td {
+  background: color-mix(in srgb, var(--success), transparent 90%);
+}
+
+.lap-slower td {
+  background: color-mix(in srgb, #fb7185, transparent 90%);
+}
+
+.lap-steady td {
+  background: color-mix(in srgb, var(--accent), transparent 92%);
+}
+
+.lap-trend {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-panel);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 6px 8px;
+  text-transform: uppercase;
+}
+
+.lap-trend-faster {
+  border-color: color-mix(in srgb, var(--success), transparent 35%);
+  color: #bbf7d0;
+}
+
+.lap-trend-slower {
+  border-color: color-mix(in srgb, #fb7185, transparent 35%);
+  color: #fecaca;
+}
+
+.lap-trend-steady {
+  border-color: color-mix(in srgb, var(--accent), transparent 35%);
+  color: var(--accent);
 }
 
 .empty-history {
