@@ -2005,6 +2005,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                   type="checkbox"
                   onChange={(event) => setWorkdaysOnly(event.target.checked)}
                 />
+                <span className="inline-checkmark" aria-hidden="true" />
                 <span>Weekdays only</span>
               </label>
             </div>
@@ -2079,6 +2080,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                   type="checkbox"
                   onChange={(event) => setCountInclusive(event.target.checked)}
                 />
+                <span className="inline-checkmark" aria-hidden="true" />
                 <span>Include start date</span>
               </label>
             </div>

@@ -1168,6 +1168,7 @@ a {
 }
 
 .inline-toggle {
+  position: relative;
   align-items: center;
   align-self: end;
   display: flex !important;
@@ -1182,11 +1183,52 @@ a {
 }
 
 .inline-toggle input {
-  accent-color: var(--accent-strong);
-  flex: 0 0 auto;
+  position: absolute;
+  opacity: 0;
   width: 16px;
   height: 16px;
   margin: 0;
+  pointer-events: none;
+}
+
+.inline-checkmark {
+  position: relative;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--brand-border);
+  border-radius: 999px;
+  background: var(--surface-panel);
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--surface-control), transparent 18%);
+}
+
+.inline-checkmark::after {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  width: 4px;
+  height: 8px;
+  border: solid #06101c;
+  border-width: 0 2px 2px 0;
+  content: "";
+  opacity: 0;
+  transform: rotate(45deg);
+}
+
+.inline-toggle input:checked + .inline-checkmark {
+  background: var(--accent-strong);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, white, transparent 72%),
+    0 0 18px var(--glow-cyan);
+}
+
+.inline-toggle input:checked + .inline-checkmark::after {
+  opacity: 1;
+}
+
+.inline-toggle:focus-within {
+  border-color: var(--brand-border);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .inline-toggle span {
