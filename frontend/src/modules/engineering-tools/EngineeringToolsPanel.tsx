@@ -10,6 +10,7 @@ import type {
   UnitConvertResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
+  YieldCalculateResultPayload,
 } from "../../core/worker-messages";
 import type { WorkerHost } from "../../core/worker-host";
 
@@ -45,6 +46,7 @@ type ActiveTool =
   | "stopwatch"
   | "alarm-decoder"
   | "unit-converter"
+  | "yield-calculator"
   | "online-alarm"
   | "countdown-timer";
 
@@ -59,6 +61,7 @@ const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = 
   { id: "online-alarm", label: "Online Alarm", category: "Time" },
   { id: "countdown-timer", label: "Countdown Timer", category: "Time" },
   { id: "unit-converter", label: "Unit Converter", category: "Unit Convert" },
+  { id: "yield-calculator", label: "Yield / Scrap / UPH", category: "Unit Convert" },
   { id: "alarm-decoder", label: "Alarm Decoder", category: "Decoder" },
 ];
 
@@ -415,6 +418,11 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [unitInputValue, setUnitInputValue] = useState(25.4);
   const [unitFrom, setUnitFrom] = useState("mm");
   const [unitTo, setUnitTo] = useState("in");
+  const [yieldInputQuantity, setYieldInputQuantity] = useState(1000);
+  const [yieldGoodQuantity, setYieldGoodQuantity] = useState(960);
+  const [yieldScrapQuantity, setYieldScrapQuantity] = useState(40);
+  const [yieldRuntimeMinutes, setYieldRuntimeMinutes] = useState(480);
+  const [yieldTargetUph, setYieldTargetUph] = useState(115);
   const [alarmClockNow, setAlarmClockNow] = useState(() => new Date());
   const [alarmHour, setAlarmHour] = useState("07");
   const [alarmMinute, setAlarmMinute] = useState("00");
@@ -459,18 +467,21 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [clock, setClock] = useState<FactoryClockResultPayload | null>(null);
   const [alarmResult, setAlarmResult] = useState<AlarmDecodeResultPayload | null>(null);
   const [unitResult, setUnitResult] = useState<UnitConvertResultPayload | null>(null);
+  const [yieldResult, setYieldResult] = useState<YieldCalculateResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
   const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
   const [timezoneStatus, setTimezoneStatus] = useState<ToolStatus>("idle");
   const [clockStatus, setClockStatus] = useState<ToolStatus>("idle");
   const [alarmStatus, setAlarmStatus] = useState<ToolStatus>("idle");
   const [unitStatus, setUnitStatus] = useState<ToolStatus>("idle");
+  const [yieldStatus, setYieldStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [clockError, setClockError] = useState<string | null>(null);
   const [alarmError, setAlarmError] = useState<string | null>(null);
   const [unitError, setUnitError] = useState<string | null>(null);
+  const [yieldError, setYieldError] = useState<string | null>(null);
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
   const [stopwatchBaseMs, setStopwatchBaseMs] = useState(0);
@@ -551,6 +562,22 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       toUnit: unitTo,
     }),
     [unitCategory, unitFrom, unitInputValue, unitTo],
+  );
+  const yieldPayload = useMemo(
+    () => ({
+      inputQuantity: yieldInputQuantity,
+      goodQuantity: yieldGoodQuantity,
+      scrapQuantity: yieldScrapQuantity,
+      runtimeMinutes: yieldRuntimeMinutes,
+      targetUph: yieldTargetUph,
+    }),
+    [
+      yieldGoodQuantity,
+      yieldInputQuantity,
+      yieldRuntimeMinutes,
+      yieldScrapQuantity,
+      yieldTargetUph,
+    ],
   );
   const nextAlarm = useMemo(() => {
     const enabledAlarms = onlineAlarms.filter((alarm) => alarm.enabled);
@@ -790,6 +817,38 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [unitPayload, workerHost]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setYieldStatus("running");
+    setYieldError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<YieldCalculateResultPayload>("compute", "tool:yield-calculate", yieldPayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setYieldResult(payload);
+          setYieldStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setYieldStatus("error");
+          setYieldError(reason instanceof Error ? reason.message : "Unable to calculate yield.");
+        });
+    }, 120);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [workerHost, yieldPayload]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -1871,6 +1930,124 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                 <strong>{item.formattedValue}</strong>
               </article>
             )) ?? null}
+          </div>
+        </article>
+        ) : null}
+
+        {activeTool === "yield-calculator" ? (
+        <article className="panel tool-card yield-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Factory math</p>
+              <h3>Yield / Scrap / UPH Calculator</h3>
+            </div>
+            <span className={`status-chip status-${yieldStatus}`}>{yieldStatus}</span>
+          </div>
+
+          <div className="tool-form yield-form">
+            <label>
+              <span>Input quantity</span>
+              <input
+                min="0"
+                type="number"
+                value={yieldInputQuantity}
+                onChange={(event) => setYieldInputQuantity(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Good quantity</span>
+              <input
+                min="0"
+                type="number"
+                value={yieldGoodQuantity}
+                onChange={(event) => setYieldGoodQuantity(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Scrap quantity</span>
+              <input
+                min="0"
+                type="number"
+                value={yieldScrapQuantity}
+                onChange={(event) => setYieldScrapQuantity(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Runtime minutes</span>
+              <input
+                min="0"
+                type="number"
+                value={yieldRuntimeMinutes}
+                onChange={(event) => setYieldRuntimeMinutes(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Target UPH</span>
+              <input
+                min="0"
+                type="number"
+                value={yieldTargetUph}
+                onChange={(event) => setYieldTargetUph(Number(event.target.value))}
+              />
+            </label>
+          </div>
+
+          {yieldError ? <div className="error-note">{yieldError}</div> : null}
+
+          <div className={`yield-hero yield-status-${yieldResult?.status ?? "info"}`} aria-live="polite">
+            <span>Line performance</span>
+            <strong>{yieldResult ? `${yieldResult.metrics[0].value} yield` : "--"}</strong>
+            <p>{yieldResult?.summary ?? "Enter production quantities to calculate yield and UPH."}</p>
+          </div>
+
+          <div className="yield-metric-grid">
+            {yieldResult?.metrics.map((metric) => (
+              <article className={`yield-metric-card yield-tone-${metric.tone}`} key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+              </article>
+            )) ?? null}
+          </div>
+
+          <div className="alarm-detail-grid">
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Quantity reconciliation</span>
+                <strong>{yieldResult ? yieldResult.status : "--"}</strong>
+              </div>
+              <div className="yield-reconcile-list">
+                <div>
+                  <span>Input</span>
+                  <strong>{yieldResult?.totalQuantity ?? "--"}</strong>
+                </div>
+                <div>
+                  <span>Good + scrap</span>
+                  <strong>
+                    {yieldResult ? yieldResult.goodQuantity + yieldResult.scrapQuantity : "--"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Variance</span>
+                  <strong>{yieldResult?.varianceQuantity ?? "--"}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Recommended actions</span>
+                <strong>{yieldResult?.recommendedActions.length ?? 0}</strong>
+              </div>
+              <ol className="alarm-action-list">
+                {yieldResult?.recommendedActions.map((action) => (
+                  <li key={action}>{action}</li>
+                )) ?? null}
+              </ol>
+            </section>
           </div>
         </article>
         ) : null}

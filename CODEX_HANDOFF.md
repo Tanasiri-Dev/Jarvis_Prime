@@ -93,6 +93,10 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Converts Length, Temperature, Pressure, Vacuum, and Mass.
   - Shows the primary converted value, formula path, all related values in the selected category, and a Swap action.
   - Uses `tool:unit-convert` in `compute-worker`.
+- Yield / Scrap / UPH Calculator
+  - Calculates yield percent, scrap percent, actual UPH, total UPH, target gap, projected target output, and quantity reconciliation.
+  - Shows line-performance status and recommended actions for variance, scrap, and throughput risk.
+  - Uses `tool:yield-calculate` in `compute-worker`.
 
 ## UI System Notes
 
@@ -108,24 +112,24 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
 
 ## Recommended Next Tool
 
-Add `Yield / scrap / UPH calculator` next.
+Add `CSV and log quick parser` next.
 
 Suggested first fields:
 
-- Input quantity
-- Good quantity
-- Scrap quantity
-- Runtime minutes
-- Target UPH
+- Paste area for raw CSV/log text
+- File name or source note
+- Parser mode: CSV, key-value log, alarm/event log
+- Delimiter selector for CSV
+- Preview row limit
 
 Suggested implementation pattern:
 
-1. Add `yield-calculator` to `ActiveTool`.
-2. Add item to `toolOptions`.
+1. Add `csv-log-parser` to `ActiveTool`.
+2. Add item to `toolOptions` under a new or existing parser/log group after Decoder if the user approves the grouping.
 3. Add request/result types in `frontend/src/core/worker-messages.ts`.
-4. Add `tool:yield-calculate` handler in `frontend/src/workers/compute-worker.ts`.
-5. Add one active tool render block in `EngineeringToolsPanel.tsx`.
-6. Add focused CSS using existing tokens in `App.css`.
+4. Add `tool:parse-log` handler in `frontend/src/workers/compute-worker.ts`.
+5. Keep parsing in worker and return a small preview plus summary metrics to the UI.
+6. Add export support after the preview is stable.
 7. Run `npm run typecheck` and `npm run build`.
 8. Commit and push.
 

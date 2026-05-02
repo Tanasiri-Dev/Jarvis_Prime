@@ -15,6 +15,9 @@ import type {
   WeekShiftResultPayload,
   WorkerEnvelope,
   WorkerNotification,
+  YieldCalculateRequestPayload,
+  YieldCalculateResultPayload,
+  YieldStatus,
 } from "../core/worker-messages";
 
 const scope = self as unknown as {
@@ -644,6 +647,130 @@ function calculateUnitConvert(payload: UnitConvertRequestPayload): UnitConvertRe
   };
 }
 
+function formatPercent(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+
+  return `${new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+  }).format(value)}%`;
+}
+
+function calculateYield(payload: YieldCalculateRequestPayload): YieldCalculateResultPayload {
+  const inputQuantity = Number(payload.inputQuantity);
+  const goodQuantity = Number(payload.goodQuantity);
+  const scrapQuantity = Number(payload.scrapQuantity);
+  const runtimeMinutes = Number(payload.runtimeMinutes);
+  const targetUph = Number(payload.targetUph);
+
+  const values = [inputQuantity, goodQuantity, scrapQuantity, runtimeMinutes, targetUph];
+
+  if (values.some((value) => !Number.isFinite(value))) {
+    throw new Error("Enter valid numeric values for yield calculation.");
+  }
+
+  if (values.some((value) => value < 0)) {
+    throw new Error("Yield, scrap, runtime, and target values cannot be negative.");
+  }
+
+  const reconciledQuantity = goodQuantity + scrapQuantity;
+  const totalQuantity = inputQuantity > 0 ? inputQuantity : reconciledQuantity;
+  const varianceQuantity = inputQuantity > 0 ? inputQuantity - reconciledQuantity : 0;
+  const runtimeHours = runtimeMinutes / 60;
+  const yieldPercent = totalQuantity > 0 ? (goodQuantity / totalQuantity) * 100 : 0;
+  const scrapPercent = totalQuantity > 0 ? (scrapQuantity / totalQuantity) * 100 : 0;
+  const actualUph = runtimeHours > 0 ? goodQuantity / runtimeHours : 0;
+  const totalUph = runtimeHours > 0 ? totalQuantity / runtimeHours : 0;
+  const targetGap = targetUph > 0 ? actualUph - targetUph : 0;
+  const projectedGoodAtTarget = runtimeHours * targetUph;
+
+  let status: YieldStatus = "info";
+
+  if (targetUph > 0 && runtimeHours > 0) {
+    status = actualUph >= targetUph ? "on-target" : actualUph >= targetUph * 0.9 ? "watch" : "risk";
+  } else if (totalQuantity > 0) {
+    status = yieldPercent >= 98 ? "on-target" : yieldPercent >= 95 ? "watch" : "risk";
+  }
+
+  const recommendations: string[] = [];
+
+  if (Math.abs(varianceQuantity) > 0.001) {
+    recommendations.push("Reconcile input quantity against good plus scrap before closing the lot.");
+  }
+
+  if (scrapPercent >= 5) {
+    recommendations.push("Review scrap reason codes and tool alarms because scrap is above 5%.");
+  }
+
+  if (targetUph > 0 && runtimeHours > 0 && actualUph < targetUph) {
+    recommendations.push("Check downtime, minor stops, and recipe cycle time against the UPH target.");
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push("Result is healthy. Keep monitoring trend by product, tool, and shift.");
+  }
+
+  const summary =
+    status === "on-target"
+      ? "Yield and UPH are on target for this run."
+      : status === "watch"
+        ? "Performance is close to target. Watch trend before the next handover."
+        : status === "risk"
+          ? "Performance needs attention. Prioritize scrap and throughput checks."
+          : "Add runtime and target UPH to unlock throughput status.";
+
+  return {
+    totalQuantity,
+    goodQuantity,
+    scrapQuantity,
+    yieldPercent,
+    scrapPercent,
+    actualUph,
+    totalUph,
+    targetUph,
+    targetGap,
+    projectedGoodAtTarget,
+    varianceQuantity,
+    status,
+    summary,
+    metrics: [
+      {
+        label: "Yield",
+        value: formatPercent(yieldPercent),
+        tone: yieldPercent >= 98 ? "good" : yieldPercent >= 95 ? "warning" : "danger",
+      },
+      {
+        label: "Scrap",
+        value: formatPercent(scrapPercent),
+        tone: scrapPercent <= 2 ? "good" : scrapPercent <= 5 ? "warning" : "danger",
+      },
+      {
+        label: "Actual UPH",
+        value: `${formatNumber(actualUph)} UPH`,
+        tone: targetUph <= 0 || actualUph >= targetUph ? "good" : actualUph >= targetUph * 0.9 ? "warning" : "danger",
+      },
+      {
+        label: "Target gap",
+        value: targetUph > 0 ? `${targetGap >= 0 ? "+" : ""}${formatNumber(targetGap)} UPH` : "No target",
+        tone: targetUph <= 0 ? "neutral" : targetGap >= 0 ? "good" : targetGap >= -targetUph * 0.1 ? "warning" : "danger",
+      },
+      {
+        label: "Total UPH",
+        value: `${formatNumber(totalUph)} UPH`,
+        tone: "neutral",
+      },
+      {
+        label: "Projected target output",
+        value: formatNumber(projectedGoodAtTarget),
+        tone: "neutral",
+      },
+    ],
+    recommendedActions: recommendations,
+  };
+}
+
 scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
   const message = event.data;
 
@@ -688,6 +815,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:unit-convert") {
       const payload = calculateUnitConvert(message.payload as UnitConvertRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:unit-convert:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:yield-calculate") {
+      const payload = calculateYield(message.payload as YieldCalculateRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:yield-calculate:result", payload });
       return;
     }
 

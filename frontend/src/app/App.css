@@ -1518,6 +1518,124 @@ a {
   overflow-wrap: anywhere;
 }
 
+.yield-form {
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+}
+
+.yield-hero {
+  display: grid;
+  gap: 10px;
+  min-height: 190px;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 0%, var(--accent-soft), transparent 44%),
+    linear-gradient(135deg, var(--surface-control), transparent),
+    var(--surface-panel);
+  padding: 24px;
+  place-items: center;
+  text-align: center;
+}
+
+.yield-hero span,
+.yield-hero p {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.yield-hero span {
+  text-transform: uppercase;
+}
+
+.yield-hero strong {
+  color: var(--text-primary);
+  font-size: clamp(42px, 6vw, 74px);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.yield-status-on-target {
+  border-color: color-mix(in srgb, var(--success), transparent 30%);
+}
+
+.yield-status-watch {
+  border-color: color-mix(in srgb, #facc15, transparent 25%);
+}
+
+.yield-status-risk {
+  border-color: color-mix(in srgb, #fb7185, transparent 22%);
+}
+
+.yield-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.yield-metric-card {
+  display: grid;
+  gap: 10px;
+  min-height: 112px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 100% 0%, var(--accent-soft), transparent 42%),
+    var(--surface-control);
+  padding: 14px;
+}
+
+.yield-metric-card span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.yield-metric-card strong {
+  color: var(--text-primary);
+  font-size: 22px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.yield-tone-good {
+  border-color: color-mix(in srgb, var(--success), transparent 35%);
+}
+
+.yield-tone-warning {
+  border-color: color-mix(in srgb, #facc15, transparent 35%);
+}
+
+.yield-tone-danger {
+  border-color: color-mix(in srgb, #fb7185, transparent 32%);
+}
+
+.yield-reconcile-list {
+  display: grid;
+  gap: 10px;
+}
+
+.yield-reconcile-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding-bottom: 10px;
+}
+
+.yield-reconcile-list div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.yield-reconcile-list strong {
+  color: var(--text-primary);
+}
+
 .alarm-clock-face {
   display: grid;
   place-items: center;
@@ -1942,6 +2060,7 @@ a {
   .timezone-form,
   .timezone-add-panel,
   .unit-form,
+  .yield-form,
   .alarm-builder,
   .countdown-builder,
   .alarm-result-grid,

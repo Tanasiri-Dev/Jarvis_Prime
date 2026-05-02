@@ -140,6 +140,40 @@ export interface UnitConvertResultPayload {
   }>;
 }
 
+export interface YieldCalculateRequestPayload {
+  inputQuantity: number;
+  goodQuantity: number;
+  scrapQuantity: number;
+  runtimeMinutes: number;
+  targetUph: number;
+}
+
+export type YieldStatus = "on-target" | "watch" | "risk" | "info";
+
+export interface YieldMetric {
+  label: string;
+  value: string;
+  tone: "good" | "warning" | "danger" | "neutral";
+}
+
+export interface YieldCalculateResultPayload {
+  totalQuantity: number;
+  goodQuantity: number;
+  scrapQuantity: number;
+  yieldPercent: number;
+  scrapPercent: number;
+  actualUph: number;
+  totalUph: number;
+  targetUph: number;
+  targetGap: number;
+  projectedGoodAtTarget: number;
+  varianceQuantity: number;
+  status: YieldStatus;
+  summary: string;
+  metrics: YieldMetric[];
+  recommendedActions: string[];
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;
