@@ -3648,7 +3648,28 @@ a {
     #38bdf8;
   box-shadow: 0 7px 18px rgba(0, 0, 0, 0.18);
   color: #04101f;
+  cursor: pointer;
+  font: inherit;
   padding: 5px 7px;
+  text-align: left;
+  transition:
+    box-shadow 160ms ease,
+    filter 160ms ease,
+    transform 160ms ease;
+}
+
+.meeting-outlook-event:hover,
+.meeting-outlook-event[aria-pressed="true"] {
+  box-shadow:
+    0 9px 22px rgba(0, 0, 0, 0.24),
+    0 0 22px rgba(125, 211, 252, 0.42);
+  filter: saturate(1.12);
+  transform: translateY(-1px);
+}
+
+.meeting-outlook-event:focus-visible {
+  outline: 2px solid #f8fbff;
+  outline-offset: 2px;
 }
 
 .meeting-outlook-event strong {
@@ -3684,6 +3705,113 @@ a {
 
 .meeting-outlook-event.room-chang {
   border-left-color: #34d399;
+}
+
+.meeting-detail-popover {
+  position: absolute;
+  z-index: 8;
+  display: grid;
+  gap: 10px;
+  width: min(340px, calc((100% - 58px) / 2));
+  min-height: 190px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand-border), transparent 8%);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.05)),
+    radial-gradient(circle at 10% 0%, rgba(125, 211, 252, 0.24), transparent 44%),
+    color-mix(in srgb, var(--surface-panel), transparent 10%);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.34),
+    0 0 36px var(--glow-cyan);
+  backdrop-filter: blur(22px) saturate(1.35);
+  color: var(--text-secondary);
+  padding: 16px;
+}
+
+.meeting-detail-popover::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.12) 42%, transparent 64%);
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.meeting-detail-popover > * {
+  position: relative;
+  z-index: 1;
+}
+
+.meeting-detail-popover span {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.meeting-detail-popover strong {
+  color: var(--text-primary);
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.meeting-detail-popover dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.meeting-detail-popover dl div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.meeting-detail-popover dt,
+.meeting-detail-popover dd,
+.meeting-detail-popover p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.meeting-detail-popover dt {
+  color: var(--text-muted);
+}
+
+.meeting-detail-popover dd {
+  color: var(--text-secondary);
+}
+
+.meeting-detail-popover p {
+  color: var(--text-muted);
+}
+
+.meeting-detail-close {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-control), transparent 8%);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.meeting-detail-close:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 0 18px var(--glow-cyan);
 }
 
 .meeting-timeline {

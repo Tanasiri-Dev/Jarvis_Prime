@@ -373,6 +373,21 @@ function getBookingWidth(): string {
   return `calc((100% - ${calendarHourColumnWidth}px) / 5 - 8px)`;
 }
 
+function getBookingDetailTop(start: string, end: string): number {
+  return Math.min(
+    calendarDayHeaderHeight + calendarHourHeight * workdayHours.length - 230,
+    getBookingTop(start) + getBookingHeight(start, end) + 8,
+  );
+}
+
+function getBookingDetailLeft(dayIndex: number): string {
+  if (dayIndex >= 3) {
+    return `calc(${calendarHourColumnWidth}px + ((100% - ${calendarHourColumnWidth}px) / 5) * ${dayIndex} - 280px)`;
+  }
+
+  return `calc(${calendarHourColumnWidth}px + ((100% - ${calendarHourColumnWidth}px) / 5) * ${dayIndex} + 18px)`;
+}
+
 export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
   const [meetingDate, setMeetingDate] = useState(todayKey);
   const [startTime, setStartTime] = useState("10:00");
@@ -381,6 +396,7 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
   const [owner, setOwner] = useState("Planner");
   const [purpose, setPurpose] = useState("Production sync");
   const [visibleRoomIds, setVisibleRoomIds] = useState(() => new Set(meetingRooms.map((room) => room.id)));
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [status, setStatus] = useState<RenderStatusName>("idle");
   const [result, setResult] = useState<MeetingRoomResultPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -395,6 +411,13 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
     () => weekBookings.filter((booking) => visibleRoomIds.has(booking.roomId)),
     [visibleRoomIds, weekBookings],
   );
+  const selectedBooking = useMemo(
+    () => visibleBookings.find((booking) => booking.id === selectedBookingId) ?? null,
+    [selectedBookingId, visibleBookings],
+  );
+  const selectedBookingDayIndex = selectedBooking
+    ? weekDays.findIndex((day) => toDateKey(day) === selectedBooking.start.slice(0, 10))
+    : -1;
   const monthDays = useMemo(() => getCalendarMonthDays(parseDateKey(meetingDate)), [meetingDate]);
   const selectedRoom = result?.rooms.find((room) => room.roomId === selectedRoomId);
 
@@ -453,6 +476,7 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
 
       return next;
     });
+    setSelectedBookingId(null);
   };
 
   return (
@@ -655,9 +679,12 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
                 }
 
                 return (
-                  <article
+                  <button
                     className={`meeting-outlook-event room-${booking.roomId}`}
                     key={booking.id}
+                    type="button"
+                    aria-pressed={selectedBookingId === booking.id}
+                    onClick={() => setSelectedBookingId((current) => (current === booking.id ? null : booking.id))}
                     style={{
                       top: `${getBookingTop(booking.start)}px`,
                       left: getBookingLeft(dayIndex),
@@ -671,9 +698,48 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
                       {formatBookingTime(booking.start)} - {formatBookingTime(booking.end)}
                     </span>
                     <small>{booking.roomName}</small>
-                  </article>
+                  </button>
                 );
               })}
+
+              {selectedBooking && selectedBookingDayIndex >= 0 ? (
+                <aside
+                  className="meeting-detail-popover"
+                  style={{
+                    top: `${getBookingDetailTop(selectedBooking.start, selectedBooking.end)}px`,
+                    left: getBookingDetailLeft(selectedBookingDayIndex),
+                  }}
+                  aria-live="polite"
+                >
+                  <button
+                    className="meeting-detail-close"
+                    type="button"
+                    aria-label="Close meeting details"
+                    onClick={() => setSelectedBookingId(null)}
+                  >
+                    ×
+                  </button>
+                  <span>{selectedBooking.roomName}</span>
+                  <strong>{selectedBooking.title}</strong>
+                  <dl>
+                    <div>
+                      <dt>Time</dt>
+                      <dd>
+                        {formatBookingTime(selectedBooking.start)} - {formatBookingTime(selectedBooking.end)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Owner</dt>
+                      <dd>{selectedBooking.owner}</dd>
+                    </div>
+                    <div>
+                      <dt>Purpose</dt>
+                      <dd>{selectedBooking.purpose}</dd>
+                    </div>
+                  </dl>
+                  <p>Transparent meeting preview for planner review before Outlook sync.</p>
+                </aside>
+              ) : null}
             </div>
           </section>
         </div>
