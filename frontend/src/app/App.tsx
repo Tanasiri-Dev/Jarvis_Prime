@@ -290,18 +290,24 @@ export function App() {
               </article>
             </section>
 
-            <DiagnosticsPanel theme={theme} workerHost={workerHost} />
+            <DiagnosticsPanel theme={theme} t={t} workerHost={workerHost} />
           </>
         ) : null}
 
-        {activeRoute === "engineering-tools" ? <EngineeringToolsPanel workerHost={workerHost} /> : null}
+        {activeRoute === "engineering-tools" ? (
+          <EngineeringToolsPanel locale={locale} t={t} workerHost={workerHost} />
+        ) : null}
 
-        {activeRoute === "public-holidays" ? <PublicHolidayPanel workerHost={workerHost} /> : null}
+        {activeRoute === "public-holidays" ? (
+          <PublicHolidayPanel locale={locale} t={t} workerHost={workerHost} />
+        ) : null}
 
-        {activeRoute === "meeting-room" ? <MeetingRoomPanel workerHost={workerHost} /> : null}
+        {activeRoute === "meeting-room" ? (
+          <MeetingRoomPanel locale={locale} t={t} workerHost={workerHost} />
+        ) : null}
 
         {activeRoute === "diagnostics" ? (
-          <DiagnosticsPanel theme={theme} workerHost={workerHost} />
+          <DiagnosticsPanel theme={theme} t={t} workerHost={workerHost} />
         ) : null}
 
         <footer className="app-footer">

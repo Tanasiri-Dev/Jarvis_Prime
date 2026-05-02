@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { Locale, Translator } from "../../core/i18n";
 import type {
   MeetingRoomBooking,
   MeetingRoomResultPayload,
@@ -8,6 +9,8 @@ import type {
 import type { WorkerHost } from "../../core/worker-host";
 
 type MeetingRoomPanelProps = {
+  locale: Locale;
+  t: Translator;
   workerHost: WorkerHost;
 };
 
@@ -63,21 +66,21 @@ function getMonday(date: Date): Date {
   return next;
 }
 
-function formatMonthYear(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
+function formatMonthYear(date: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(date);
 }
 
-function formatWeekday(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(date);
+function formatWeekday(date: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, { weekday: "long" }).format(date);
 }
 
-function formatShortDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+function formatShortDate(date: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(date);
 }
 
-function formatWeekRange(start: Date): string {
+function formatWeekRange(start: Date, locale: Locale): string {
   const end = addDays(start, 4);
-  return `${formatShortDate(start)} - ${formatShortDate(end)}, ${end.getFullYear()}`;
+  return `${formatShortDate(start, locale)} - ${formatShortDate(end, locale)}, ${end.getFullYear()}`;
 }
 
 function getCalendarMonthDays(anchorDate: Date): Date[] {
@@ -344,8 +347,8 @@ function buildWorkWeekBookings(weekStart: Date): MeetingRoomBooking[] {
   });
 }
 
-function formatBookingTime(value: string): string {
-  return new Intl.DateTimeFormat("en-US", {
+function formatBookingTime(value: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -388,7 +391,7 @@ function getBookingDetailLeft(dayIndex: number): string {
   return `calc(${calendarHourColumnWidth}px + ((100% - ${calendarHourColumnWidth}px) / 5) * ${dayIndex} + 18px)`;
 }
 
-export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
+export function MeetingRoomPanel({ locale, t, workerHost }: MeetingRoomPanelProps) {
   const [meetingDate, setMeetingDate] = useState(todayKey);
   const [startTime, setStartTime] = useState("10:00");
   const [durationMinutes, setDurationMinutes] = useState(60);
@@ -454,13 +457,13 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
         }
 
         setStatus("error");
-        setError(reason instanceof Error ? reason.message : "Unable to calculate room availability.");
+        setError(reason instanceof Error ? reason.message : t("meeting.error.availability"));
       });
 
     return () => {
       isCurrent = false;
     };
-  }, [requestPayload, workerHost]);
+  }, [requestPayload, t, workerHost]);
 
   const goToToday = () => setMeetingDate(todayKey);
   const moveWeek = (amount: number) => setMeetingDate(toDateKey(addDays(weekStart, amount * 7)));
@@ -480,25 +483,25 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
   };
 
   return (
-    <section className="meeting-page" aria-label="Meeting Room Planner">
+    <section className="meeting-page" aria-label={t("meeting.region")}>
       <article className="panel meeting-summary-panel">
-        <p className="eyebrow">Planner workspace</p>
-        <h2>Book factory meetings without schedule collisions.</h2>
-        <p>Room availability, conflicts, and calendar cards for daily planning.</p>
+        <p className="eyebrow">{t("meeting.intro.eyebrow")}</p>
+        <h2>{t("meeting.intro.title")}</h2>
+        <p>{t("meeting.intro.description")}</p>
       </article>
 
       <article className="panel meeting-tool-card">
         <div className="tool-card-header">
           <div>
-            <p className="eyebrow">Meeting room</p>
-            <h3>Room Calendar Mockup</h3>
+            <p className="eyebrow">{t("meeting.card.eyebrow")}</p>
+            <h3>{t("meeting.card.title")}</h3>
           </div>
           <StatusChip status={status} workerHost={workerHost} />
         </div>
 
         <div className="meeting-control-grid">
           <label>
-            <span>Date</span>
+            <span>{t("meeting.field.date")}</span>
             <input
               type="date"
               value={meetingDate}
@@ -507,7 +510,7 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
           </label>
 
           <label>
-            <span>Start</span>
+            <span>{t("meeting.field.start")}</span>
             <input
               type="time"
               value={startTime}
@@ -516,7 +519,7 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
           </label>
 
           <label>
-            <span>Duration</span>
+            <span>{t("meeting.field.duration")}</span>
             <select
               value={durationMinutes}
               onChange={(event) => setDurationMinutes(Number(event.target.value))}
@@ -530,7 +533,7 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
           </label>
 
           <label>
-            <span>Room</span>
+            <span>{t("meeting.field.room")}</span>
             <select
               value={selectedRoomId}
               onChange={(event) => setSelectedRoomId(event.target.value)}
@@ -544,12 +547,12 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
           </label>
 
           <label>
-            <span>Owner</span>
+            <span>{t("meeting.field.owner")}</span>
             <input value={owner} onChange={(event) => setOwner(event.target.value)} />
           </label>
 
           <label>
-            <span>Purpose</span>
+            <span>{t("meeting.field.purpose")}</span>
             <input value={purpose} onChange={(event) => setPurpose(event.target.value)} />
           </label>
         </div>
@@ -558,16 +561,16 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
 
         <div className={`meeting-hero meeting-status-${selectedRoom?.status ?? "available"}`}>
           <div>
-            <span>Request window</span>
+            <span>{t("meeting.requestWindow")}</span>
             <strong>{result?.requestedRangeLabel ?? "--"}</strong>
             <p>
               {owner} • {purpose}
             </p>
           </div>
           <div>
-            <span>Selected room</span>
+            <span>{t("meeting.selectedRoom")}</span>
             <strong>{selectedRoom?.roomName ?? "--"}</strong>
-            <p>{selectedRoom?.statusLabel ?? "Calculating availability"}</p>
+            <p>{selectedRoom?.statusLabel ?? t("meeting.calculating")}</p>
           </div>
         </div>
 
@@ -581,10 +584,10 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
         </div>
 
         <div className="meeting-outlook-shell">
-          <aside className="meeting-outlook-sidebar" aria-label="Meeting room calendars">
+          <aside className="meeting-outlook-sidebar" aria-label={t("meeting.roomCalendars")}>
             <section className="meeting-mini-calendar">
               <div className="meeting-mini-calendar-header">
-                <strong>{formatMonthYear(parseDateKey(meetingDate))}</strong>
+                <strong>{formatMonthYear(parseDateKey(meetingDate), locale)}</strong>
               </div>
               <div className="meeting-mini-weekdays">
                 {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
@@ -613,7 +616,7 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
             </section>
 
             <section className="meeting-calendar-list">
-              <p className="eyebrow">Rooms</p>
+              <p className="eyebrow">{t("meeting.rooms")}</p>
               {meetingRooms.map((room) => (
                 <label key={room.id}>
                   <input
@@ -627,15 +630,15 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
             </section>
           </aside>
 
-          <section className="meeting-outlook-calendar" aria-label="Work week room calendar">
+          <section className="meeting-outlook-calendar" aria-label={t("meeting.workWeekCalendar")}>
             <div className="meeting-calendar-toolbar">
               <div className="meeting-calendar-actions">
-                <button type="button" onClick={goToToday}>Today</button>
-                <button type="button" aria-label="Previous week" onClick={() => moveWeek(-1)}>‹</button>
-                <button type="button" aria-label="Next week" onClick={() => moveWeek(1)}>›</button>
+                <button type="button" onClick={goToToday}>{t("meeting.today")}</button>
+                <button type="button" aria-label={t("meeting.previousWeek")} onClick={() => moveWeek(-1)}>‹</button>
+                <button type="button" aria-label={t("meeting.nextWeek")} onClick={() => moveWeek(1)}>›</button>
               </div>
-              <strong>{formatWeekRange(weekStart)}</strong>
-              <span>Work Week</span>
+              <strong>{formatWeekRange(weekStart, locale)}</strong>
+              <span>{t("meeting.workWeek")}</span>
             </div>
 
             <div className="meeting-week-grid">
@@ -648,8 +651,8 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
                   aria-pressed={toDateKey(day) === meetingDate}
                   onClick={() => setMeetingDate(toDateKey(day))}
                 >
-                  <span>{formatWeekday(day)}</span>
-                  <strong>{formatShortDate(day)}</strong>
+                  <span>{formatWeekday(day, locale)}</span>
+                  <strong>{formatShortDate(day, locale)}</strong>
                 </button>
               ))}
 
@@ -695,7 +698,7 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
                   >
                     <strong>{booking.title}</strong>
                     <span>
-                      {formatBookingTime(booking.start)} - {formatBookingTime(booking.end)}
+                      {formatBookingTime(booking.start, locale)} - {formatBookingTime(booking.end, locale)}
                     </span>
                     <small>{booking.roomName}</small>
                   </button>
@@ -714,7 +717,7 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
                   <button
                     className="meeting-detail-close"
                     type="button"
-                    aria-label="Close meeting details"
+                    aria-label={t("meeting.closeDetails")}
                     onClick={() => setSelectedBookingId(null)}
                   >
                     ×
@@ -723,21 +726,21 @@ export function MeetingRoomPanel({ workerHost }: MeetingRoomPanelProps) {
                   <strong>{selectedBooking.title}</strong>
                   <dl>
                     <div>
-                      <dt>Time</dt>
+                      <dt>{t("meeting.detail.time")}</dt>
                       <dd>
-                        {formatBookingTime(selectedBooking.start)} - {formatBookingTime(selectedBooking.end)}
+                        {formatBookingTime(selectedBooking.start, locale)} - {formatBookingTime(selectedBooking.end, locale)}
                       </dd>
                     </div>
                     <div>
-                      <dt>Owner</dt>
+                      <dt>{t("meeting.detail.owner")}</dt>
                       <dd>{selectedBooking.owner}</dd>
                     </div>
                     <div>
-                      <dt>Purpose</dt>
+                      <dt>{t("meeting.detail.purpose")}</dt>
                       <dd>{selectedBooking.purpose}</dd>
                     </div>
                   </dl>
-                  <p>Transparent meeting preview for planner review before Outlook sync.</p>
+                  <p>{t("meeting.detail.note")}</p>
                 </aside>
               ) : null}
             </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { Locale, TranslationKey, Translator } from "../../core/i18n";
 import type {
   AlarmDecodeResultPayload,
   CapacityPlanResultPayload,
@@ -22,6 +23,8 @@ import type {
 import type { WorkerHost } from "../../core/worker-host";
 
 type EngineeringToolsPanelProps = {
+  locale: Locale;
+  t: Translator;
   workerHost: WorkerHost;
 };
 
@@ -31,8 +34,8 @@ type ToolFilter = "all" | ToolAudience;
 
 type ToolOption = {
   id: ActiveTool;
-  label: string;
-  category: string;
+  labelKey: TranslationKey;
+  categoryKey: TranslationKey;
   audiences: ToolAudience[];
 };
 
@@ -88,29 +91,36 @@ type ActiveTool =
 type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
 
 const toolOptions: ToolOption[] = [
-  { id: "workweek", label: "WorkWeek", category: "Week", audiences: ["engineer", "planner", "operator"] },
-  { id: "duration", label: "Duration Calculator", category: "Day", audiences: ["engineer", "planner"] },
-  { id: "time-utilities", label: "Time Utilities", category: "Time", audiences: ["engineer", "planner", "operator"] },
-  { id: "factory-clock", label: "Factory Clock", category: "Time", audiences: ["engineer", "planner", "operator"] },
-  { id: "timezone", label: "Timezone Converter", category: "Time", audiences: ["engineer", "planner"] },
-  { id: "stopwatch", label: "Stopwatch", category: "Time", audiences: ["engineer", "operator"] },
-  { id: "online-alarm", label: "Online Alarm", category: "Time", audiences: ["engineer", "planner", "operator"] },
-  { id: "countdown-timer", label: "Countdown Timer", category: "Time", audiences: ["engineer", "operator"] },
-  { id: "unit-converter", label: "Unit Converter", category: "Unit Convert", audiences: ["engineer"] },
-  { id: "yield-calculator", label: "Yield / Scrap / UPH", category: "Manufacturing", audiences: ["engineer", "planner"] },
-  { id: "capacity-planner", label: "Capacity / Takt Planner", category: "Manufacturing", audiences: ["planner", "engineer"] },
-  { id: "oee-calculator", label: "OEE / Downtime", category: "Manufacturing", audiences: ["engineer", "planner", "operator"] },
-  { id: "spc-helper", label: "SPC Quick Helper", category: "Manufacturing", audiences: ["engineer", "planner"] },
-  { id: "alarm-decoder", label: "Alarm Decoder", category: "Decoder", audiences: ["engineer", "operator"] },
+  { id: "workweek", labelKey: "engineering.tool.workweek", categoryKey: "engineering.category.week", audiences: ["engineer", "planner", "operator"] },
+  { id: "duration", labelKey: "engineering.tool.duration", categoryKey: "engineering.category.day", audiences: ["engineer", "planner"] },
+  { id: "time-utilities", labelKey: "engineering.tool.timeUtilities", categoryKey: "engineering.category.time", audiences: ["engineer", "planner", "operator"] },
+  { id: "factory-clock", labelKey: "engineering.tool.factoryClock", categoryKey: "engineering.category.time", audiences: ["engineer", "planner", "operator"] },
+  { id: "timezone", labelKey: "engineering.tool.timezone", categoryKey: "engineering.category.time", audiences: ["engineer", "planner"] },
+  { id: "stopwatch", labelKey: "engineering.tool.stopwatch", categoryKey: "engineering.category.time", audiences: ["engineer", "operator"] },
+  { id: "online-alarm", labelKey: "engineering.tool.onlineAlarm", categoryKey: "engineering.category.time", audiences: ["engineer", "planner", "operator"] },
+  { id: "countdown-timer", labelKey: "engineering.tool.countdownTimer", categoryKey: "engineering.category.time", audiences: ["engineer", "operator"] },
+  { id: "unit-converter", labelKey: "engineering.tool.unitConverter", categoryKey: "engineering.category.unitConvert", audiences: ["engineer"] },
+  { id: "yield-calculator", labelKey: "engineering.tool.yield", categoryKey: "engineering.category.manufacturing", audiences: ["engineer", "planner"] },
+  { id: "capacity-planner", labelKey: "engineering.tool.capacity", categoryKey: "engineering.category.manufacturing", audiences: ["planner", "engineer"] },
+  { id: "oee-calculator", labelKey: "engineering.tool.oee", categoryKey: "engineering.category.manufacturing", audiences: ["engineer", "planner", "operator"] },
+  { id: "spc-helper", labelKey: "engineering.tool.spc", categoryKey: "engineering.category.manufacturing", audiences: ["engineer", "planner"] },
+  { id: "alarm-decoder", labelKey: "engineering.tool.alarmDecoder", categoryKey: "engineering.category.decoder", audiences: ["engineer", "operator"] },
 ];
 
-const toolCategoryOrder = ["Week", "Day", "Time", "Unit Convert", "Manufacturing", "Decoder"];
+const toolCategoryOrder: TranslationKey[] = [
+  "engineering.category.week",
+  "engineering.category.day",
+  "engineering.category.time",
+  "engineering.category.unitConvert",
+  "engineering.category.manufacturing",
+  "engineering.category.decoder",
+];
 
-const toolFilterOptions: Array<{ id: ToolFilter; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "engineer", label: "Engineer" },
-  { id: "planner", label: "Planner" },
-  { id: "operator", label: "Operator" },
+const toolFilterOptions: Array<{ id: ToolFilter; labelKey: TranslationKey }> = [
+  { id: "all", labelKey: "engineering.filter.all" },
+  { id: "engineer", labelKey: "engineering.filter.engineer" },
+  { id: "planner", labelKey: "engineering.filter.planner" },
+  { id: "operator", labelKey: "engineering.filter.operator" },
 ];
 
 const timeUtilityModes: Array<{ id: TimeUtilityMode; label: string }> = [
@@ -629,7 +639,7 @@ function exportStopwatchHistory(laps: StopwatchLap[]): void {
   URL.revokeObjectURL(url);
 }
 
-export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps) {
+export function EngineeringToolsPanel({ locale: _locale, t, workerHost }: EngineeringToolsPanelProps) {
   const currentIsoWeek = getIsoWeekInfo(new Date());
   const [activeTool, setActiveTool] = useState<ActiveTool>("workweek");
   const [timestamp, setTimestamp] = useState(() => toDatetimeLocalValue(new Date()));
@@ -1001,12 +1011,13 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const toolGroups = useMemo(
     () =>
       toolCategoryOrder
-        .map((category) => ({
-          label: category,
-          tools: filteredToolOptions.filter((tool) => tool.category === category),
+        .map((categoryKey) => ({
+          label: t(categoryKey),
+          categoryKey,
+          tools: filteredToolOptions.filter((tool) => tool.categoryKey === categoryKey),
         }))
         .filter((group) => group.tools.length > 0),
-    [filteredToolOptions],
+    [filteredToolOptions, t],
   );
   const nextAlarm = useMemo(() => {
     const enabledAlarms = onlineAlarms.filter((alarm) => alarm.enabled);
@@ -1761,11 +1772,11 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   };
 
   return (
-    <section id="engineering-tools" className="tools-layout" aria-label="Engineering Tools">
+    <section id="engineering-tools" className="tools-layout" aria-label={t("engineering.region")}>
       <article className="panel tools-intro">
-        <p className="eyebrow">Engineering Tools</p>
-        <h2>Fast utilities for daily engineering work.</h2>
-        <p>Worker-backed tools for time, conversion, manufacturing, and diagnostics.</p>
+        <p className="eyebrow">{t("engineering.intro.eyebrow")}</p>
+        <h2>{t("engineering.intro.title")}</h2>
+        <p>{t("engineering.intro.description")}</p>
       </article>
 
       <div className="tools-grid">
@@ -3446,8 +3457,8 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
         </div>
 
         <aside className="panel tool-library">
-          <p className="eyebrow">Tool Library</p>
-          <div className="tool-filter" aria-label="Filter tools by role">
+          <p className="eyebrow">{t("engineering.library.title")}</p>
+          <div className="tool-filter" aria-label={t("engineering.library.filterLabel")}>
             {toolFilterOptions.map((filter) => (
               <button
                 key={filter.id}
@@ -3455,13 +3466,13 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                 type="button"
                 onClick={() => setToolFilter(filter.id)}
               >
-                {filter.label}
+                {t(filter.labelKey)}
               </button>
             ))}
           </div>
-          <div className="tool-picker" role="listbox" aria-label="Engineering tool picker">
+          <div className="tool-picker" role="listbox" aria-label={t("engineering.library.pickerLabel")}>
             {toolGroups.map((group) => (
-              <div className="tool-picker-group" key={group.label}>
+              <div className="tool-picker-group" key={group.categoryKey}>
                 <span>{group.label}</span>
                 {group.tools.map((tool) => (
                   <button
@@ -3472,16 +3483,16 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
                     type="button"
                     onClick={() => setActiveTool(tool.id)}
                   >
-                    <strong>{tool.label}</strong>
+                    <strong>{t(tool.labelKey)}</strong>
                   </button>
                 ))}
               </div>
             ))}
           </div>
 
-          <p className="eyebrow library-subtitle">Coming next</p>
+          <p className="eyebrow library-subtitle">{t("engineering.library.comingNext")}</p>
           <ul>
-            <li>CSV and log quick parser</li>
+            <li>{t("engineering.library.csvParser")}</li>
           </ul>
         </aside>
       </div>

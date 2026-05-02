@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
+import type { Translator } from "../../core/i18n";
 import type { RenderStatsPayload } from "../../core/worker-messages";
 import type { WorkerHost } from "../../core/worker-host";
 
 type DiagnosticsPanelProps = {
   theme: "dark" | "white" | "gradient";
+  t: Translator;
   workerHost: WorkerHost;
 };
 
@@ -15,7 +17,7 @@ const initialStats: RenderStatsPayload = {
   height: 0,
 };
 
-export function DiagnosticsPanel({ theme, workerHost }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({ theme, t, workerHost }: DiagnosticsPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const transferredRef = useRef(false);
   const [stats, setStats] = useState<RenderStatsPayload>(initialStats);
@@ -28,7 +30,7 @@ export function DiagnosticsPanel({ theme, workerHost }: DiagnosticsPanelProps) {
     }
 
     if (!("transferControlToOffscreen" in canvas)) {
-      setError("This browser does not support OffscreenCanvas transfer.");
+      setError(t("diagnostics.error.unsupported"));
       return;
     }
 
@@ -64,12 +66,12 @@ export function DiagnosticsPanel({ theme, workerHost }: DiagnosticsPanelProps) {
         [offscreenCanvas],
       )
       .catch((reason: unknown) => {
-        setError(reason instanceof Error ? reason.message : "Render worker failed to initialize.");
+        setError(reason instanceof Error ? reason.message : t("diagnostics.error.init"));
       });
 
     const observer = new ResizeObserver(() => {
       void resize().catch((reason: unknown) => {
-        setError(reason instanceof Error ? reason.message : "Render worker resize failed.");
+        setError(reason instanceof Error ? reason.message : t("diagnostics.error.resize"));
       });
     });
 
@@ -80,30 +82,30 @@ export function DiagnosticsPanel({ theme, workerHost }: DiagnosticsPanelProps) {
       unsubscribe();
       void workerHost.post("render", "render:dispose").catch(() => undefined);
     };
-  }, [workerHost]);
+  }, [t, workerHost]);
 
   useEffect(() => {
     void workerHost.post("render", "render:set-theme", { theme }).catch(() => undefined);
   }, [theme, workerHost]);
 
   return (
-    <section id="diagnostics" className="diagnostics" aria-label="Worker diagnostics">
+    <section id="diagnostics" className="diagnostics" aria-label={t("diagnostics.region")}>
       <article className="panel canvas-stage">
-        <canvas ref={canvasRef} className="render-canvas" aria-label="OffscreenCanvas render proof" />
+        <canvas ref={canvasRef} className="render-canvas" aria-label={t("diagnostics.canvasProof")} />
       </article>
 
-      <aside className="panel status-stack" aria-label="Render worker statistics">
-        <p className="eyebrow">Worker render proof</p>
+      <aside className="panel status-stack" aria-label={t("diagnostics.stats")}>
+        <p className="eyebrow">{t("diagnostics.renderProof")}</p>
         <div className="status-row">
-          <span>FPS</span>
+          <span>{t("diagnostics.fps")}</span>
           <strong>{stats.fps.toFixed(0)}</strong>
         </div>
         <div className="status-row">
-          <span>Frame time</span>
+          <span>{t("diagnostics.frameTime")}</span>
           <strong>{stats.frameMs.toFixed(1)} ms</strong>
         </div>
         <div className="status-row">
-          <span>Canvas</span>
+          <span>{t("diagnostics.canvas")}</span>
           <strong>
             {Math.round(stats.width)} x {Math.round(stats.height)}
           </strong>

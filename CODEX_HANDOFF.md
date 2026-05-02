@@ -147,8 +147,8 @@ Route: `http://127.0.0.1:5173/#public-holidays`
 
 - Internationalization foundation supports `en`, `th`, and `zh-CN`.
 - Language preference is stored in `localStorage` under `jarvis-prime.locale`.
-- Current translated surface includes app navigation, top bar route titles, Command Center summary, footer, theme labels, language labels, and common shell text.
-- Next i18n pass should move Engineering Tools, Meeting Room, Public Holidays, and Diagnostics strings into dictionaries.
+- Current translated surface includes app navigation, top bar route titles, Command Center summary, footer, theme labels, language labels, common shell text, Diagnostics labels, Public Holiday panel shell, Meeting Room panel shell/calendar labels, and Engineering Tools intro/tool-library labels.
+- Next i18n pass should move the detailed Engineering Tools forms/results and worker-generated metric labels into dictionaries.
 - Theme switcher is compact icon-only: moon for dark, sun for white.
 - Default dark theme follows the `CODEX.md` crypto-native glassmorphism direction: dark glass panels, luminous borders, sticky glass top bar, and stronger glow on hover.
 - Page header titles use gradient text, and the top toolbar uses a pure liquid glass style with blur, saturation, inner highlights, and soft reflection.

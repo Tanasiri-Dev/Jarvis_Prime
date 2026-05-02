@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { Locale, Translator } from "../../core/i18n";
 import type {
   PublicHolidayApiItem,
   PublicHolidayLookupResultPayload,
@@ -257,7 +258,15 @@ function HolidayMonthFrame({
   );
 }
 
-export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
+export function PublicHolidayPanel({
+  locale: _locale,
+  t,
+  workerHost,
+}: {
+  locale: Locale;
+  t: Translator;
+  workerHost: WorkerHost;
+}) {
   const [selectedCityId, setSelectedCityId] = useState(holidayCities[0].id);
   const [year, setYear] = useState(currentYear);
   const [rawHolidays, setRawHolidays] = useState<PublicHolidayApiItem[]>([]);
@@ -307,14 +316,14 @@ export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
         setRawHolidays([]);
         setResult(null);
         setStatus("error");
-        setError(reason instanceof Error ? reason.message : "Unable to load public holidays.");
+        setError(reason instanceof Error ? reason.message : t("holiday.error.load"));
       });
 
     return () => {
       isCurrent = false;
       abortController.abort();
     };
-  }, [sourceUrl]);
+  }, [sourceUrl, t]);
 
   useEffect(() => {
     if (holidayLoadKey === 0) {
@@ -349,34 +358,34 @@ export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
 
         setResult(null);
         setStatus("error");
-        setError(reason instanceof Error ? reason.message : "Unable to prepare holiday calendar.");
+        setError(reason instanceof Error ? reason.message : t("holiday.error.prepare"));
       });
 
     return () => {
       isCurrent = false;
     };
-  }, [holidayLoadKey, rawHolidays, selectedCity, workerHost, year]);
+  }, [holidayLoadKey, rawHolidays, selectedCity, t, workerHost, year]);
 
   return (
-    <section id="public-holidays" className="holiday-page" aria-label="Public Holidays">
+    <section id="public-holidays" className="holiday-page" aria-label={t("holiday.region")}>
       <article className="panel holiday-summary-panel">
-        <p className="eyebrow">Planner calendar</p>
-        <h2>Public holiday lookup by city.</h2>
-        <p>City presets with worker-grouped holiday months for planning coverage and handovers.</p>
+        <p className="eyebrow">{t("holiday.intro.eyebrow")}</p>
+        <h2>{t("holiday.intro.title")}</h2>
+        <p>{t("holiday.intro.description")}</p>
       </article>
 
       <article className="panel holiday-tool-card">
         <div className="tool-card-header">
           <div>
-            <p className="eyebrow">Calendar</p>
-            <h3>City Holiday Lookup</h3>
+            <p className="eyebrow">{t("holiday.card.eyebrow")}</p>
+            <h3>{t("holiday.card.title")}</h3>
           </div>
           <StatusChip status={status} workerHost={workerHost} />
         </div>
 
         <div className="holiday-control-grid">
           <label>
-            <span>City</span>
+            <span>{t("holiday.field.city")}</span>
             <select
               value={selectedCityId}
               onChange={(event) => setSelectedCityId(event.target.value)}
@@ -392,7 +401,7 @@ export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
           </label>
 
           <label>
-            <span>Year</span>
+            <span>{t("holiday.field.year")}</span>
             <input
               max={9999}
               min={1900}
@@ -414,9 +423,9 @@ export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
             </p>
           </div>
           <div>
-            <span>Next holiday</span>
+            <span>{t("holiday.nextHoliday")}</span>
             <strong>{result?.nextHoliday?.dayLabel ?? "--"}</strong>
-            <p>{result?.nextHoliday?.name ?? "Waiting for holiday data"}</p>
+            <p>{result?.nextHoliday?.name ?? t("holiday.waiting")}</p>
           </div>
         </div>
 
@@ -428,7 +437,7 @@ export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
             </article>
           )) ?? (
             <article className="yield-metric-card">
-              <span>Loading</span>
+              <span>{t("holiday.loading")}</span>
               <strong>--</strong>
             </article>
           )}
