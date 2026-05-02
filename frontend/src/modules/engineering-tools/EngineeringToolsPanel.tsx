@@ -10,6 +10,7 @@ import type {
   TimezoneTargetConfig,
   UnitConverterCategory,
   UnitConvertResultPayload,
+  WeekRangeResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
   YieldCalculateResultPayload,
@@ -600,8 +601,11 @@ function exportStopwatchHistory(laps: StopwatchLap[]): void {
 }
 
 export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps) {
+  const currentIsoWeek = getIsoWeekInfo(new Date());
   const [activeTool, setActiveTool] = useState<ActiveTool>("workweek");
   const [timestamp, setTimestamp] = useState(() => toDatetimeLocalValue(new Date()));
+  const [weekRangeYear, setWeekRangeYear] = useState(currentIsoWeek.isoYear);
+  const [weekRangeWeek, setWeekRangeWeek] = useState(currentIsoWeek.isoWeek);
   const [durationStart, setDurationStart] = useState(() => toDatetimeLocalValue(new Date()));
   const [durationEnd, setDurationEnd] = useState(() =>
     toDatetimeLocalValue(new Date(Date.now() + 60 * 60 * 1000)),
@@ -673,6 +677,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [dayShiftStartHour, setDayShiftStartHour] = useState(8);
   const [shiftLengthHours, setShiftLengthHours] = useState(12);
   const [result, setResult] = useState<WeekShiftResultPayload | null>(null);
+  const [weekRangeResult, setWeekRangeResult] = useState<WeekRangeResultPayload | null>(null);
   const [durationResult, setDurationResult] = useState<DurationResultPayload | null>(null);
   const [timezoneResult, setTimezoneResult] = useState<TimezoneConversionResultPayload | null>(
     null,
@@ -683,6 +688,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [yieldResult, setYieldResult] = useState<YieldCalculateResultPayload | null>(null);
   const [capacityResult, setCapacityResult] = useState<CapacityPlanResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
+  const [weekRangeStatus, setWeekRangeStatus] = useState<ToolStatus>("idle");
   const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
   const [timezoneStatus, setTimezoneStatus] = useState<ToolStatus>("idle");
   const [clockStatus, setClockStatus] = useState<ToolStatus>("idle");
@@ -691,6 +697,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [yieldStatus, setYieldStatus] = useState<ToolStatus>("idle");
   const [capacityStatus, setCapacityStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [weekRangeError, setWeekRangeError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [clockError, setClockError] = useState<string | null>(null);
@@ -738,6 +745,13 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       shiftLengthHours,
     }),
     [dayShiftStartHour, shiftLengthHours, timestamp],
+  );
+  const weekRangePayload = useMemo(
+    () => ({
+      isoYear: weekRangeYear,
+      isoWeek: weekRangeWeek,
+    }),
+    [weekRangeWeek, weekRangeYear],
   );
   const durationPayload = useMemo(
     () => ({
@@ -967,6 +981,38 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   useEffect(() => {
     setWorkweekMonthOffset(0);
   }, [timestamp]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setWeekRangeStatus("running");
+    setWeekRangeError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<WeekRangeResultPayload>("compute", "tool:week-range", weekRangePayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setWeekRangeResult(payload);
+          setWeekRangeStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setWeekRangeStatus("error");
+          setWeekRangeError(reason instanceof Error ? reason.message : "Unable to calculate WorkWeek range.");
+        });
+    }, 120);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [weekRangePayload, workerHost]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -1596,6 +1642,75 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               </div>
             </section>
           </div>
+
+          <section className="week-range-converter" aria-label="WorkWeek to date range converter">
+            <div className="week-range-header">
+              <div>
+                <p className="eyebrow">Week to date range</p>
+                <h4>Convert WorkWeek to calendar dates</h4>
+              </div>
+              <StatusChip status={weekRangeStatus} workerHost={workerHost} />
+            </div>
+
+            <div className="tool-form week-range-form">
+              <label>
+                <span>ISO year</span>
+                <input
+                  min={1900}
+                  type="number"
+                  value={weekRangeYear}
+                  onChange={(event) => setWeekRangeYear(Number(event.target.value))}
+                />
+              </label>
+
+              <label>
+                <span>WorkWeek</span>
+                <input
+                  max={53}
+                  min={1}
+                  type="number"
+                  value={weekRangeWeek}
+                  onChange={(event) => setWeekRangeWeek(Number(event.target.value))}
+                />
+              </label>
+
+              <button
+                className="use-selected-week-button"
+                disabled={!result}
+                type="button"
+                onClick={() => {
+                  if (!result) {
+                    return;
+                  }
+
+                  setWeekRangeYear(result.isoYear);
+                  setWeekRangeWeek(result.isoWeek);
+                }}
+              >
+                Use selected date
+              </button>
+            </div>
+
+            {weekRangeError ? <div className="error-note">{weekRangeError}</div> : null}
+
+            <div className="week-range-output" aria-live="polite">
+              <div className="week-range-summary">
+                <span>{weekRangeResult?.isoWeekLabel ?? "----"}</span>
+                <strong>{weekRangeResult?.rangeLabel ?? "Select year and WorkWeek"}</strong>
+              </div>
+              <div className="week-range-days">
+                {weekRangeResult?.days.map((day) => (
+                  <article
+                    className={`week-range-day ${day.isWeekend ? "is-weekend" : ""}`}
+                    key={day.date}
+                  >
+                    <span>{day.dayName.slice(0, 3)}</span>
+                    <strong>{day.date}</strong>
+                  </article>
+                )) ?? null}
+              </div>
+            </div>
+          </section>
         </article>
         ) : null}
 

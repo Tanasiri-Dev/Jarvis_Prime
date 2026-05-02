@@ -30,6 +30,27 @@ export interface WeekShiftResultPayload {
   shiftEnd: string;
 }
 
+export interface WeekRangeRequestPayload {
+  isoYear: number;
+  isoWeek: number;
+}
+
+export interface WeekRangeDay {
+  date: string;
+  dayName: string;
+  isWeekend: boolean;
+}
+
+export interface WeekRangeResultPayload {
+  isoYear: number;
+  isoWeek: number;
+  isoWeekLabel: string;
+  startDate: string;
+  endDate: string;
+  rangeLabel: string;
+  days: WeekRangeDay[];
+}
+
 export interface FactoryClockRequestPayload {
   timestamp: string;
   dayShiftStartHour: number;

@@ -16,6 +16,9 @@ import type {
   UnitConvertResultPayload,
   WeekShiftRequestPayload,
   WeekShiftResultPayload,
+  WeekRangeDay,
+  WeekRangeRequestPayload,
+  WeekRangeResultPayload,
   WorkerEnvelope,
   WorkerNotification,
   YieldCalculateRequestPayload,
@@ -187,6 +190,22 @@ function getIsoWeek(date: Date): { isoWeek: number; isoYear: number } {
   return { isoWeek, isoYear };
 }
 
+function getIsoWeeksInYear(year: number): number {
+  return getIsoWeek(new Date(year, 11, 28)).isoWeek;
+}
+
+function getIsoWeekStart(isoYear: number, isoWeek: number): Date {
+  const fourthOfJanuary = new Date(isoYear, 0, 4);
+  const dayOffset = (fourthOfJanuary.getDay() + 6) % 7;
+  const firstMonday = new Date(fourthOfJanuary);
+
+  firstMonday.setDate(fourthOfJanuary.getDate() - dayOffset);
+  firstMonday.setHours(0, 0, 0, 0);
+  firstMonday.setDate(firstMonday.getDate() + (isoWeek - 1) * 7);
+
+  return firstMonday;
+}
+
 function normalizeHour(value: number, fallback: number): number {
   if (!Number.isFinite(value)) {
     return fallback;
@@ -254,6 +273,46 @@ function calculateWeekShiftDetails(payload: WeekShiftRequestPayload): ShiftDetai
 function calculateWeekShift(payload: WeekShiftRequestPayload): WeekShiftResultPayload {
   const { shiftEndDate: _shiftEndDate, ...result } = calculateWeekShiftDetails(payload);
   return result;
+}
+
+function calculateWeekRange(payload: WeekRangeRequestPayload): WeekRangeResultPayload {
+  const isoYear = Math.trunc(Number(payload.isoYear));
+  const isoWeek = Math.trunc(Number(payload.isoWeek));
+
+  if (!Number.isFinite(isoYear) || isoYear < 1900 || isoYear > 9999) {
+    throw new Error("Enter a valid ISO year.");
+  }
+
+  const weeksInYear = getIsoWeeksInYear(isoYear);
+
+  if (!Number.isFinite(isoWeek) || isoWeek < 1 || isoWeek > weeksInYear) {
+    throw new Error(`WorkWeek must be between 1 and ${weeksInYear} for ${isoYear}.`);
+  }
+
+  const start = getIsoWeekStart(isoYear, isoWeek);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  const days: WeekRangeDay[] = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+
+    return {
+      date: toDateKey(date),
+      dayName: dayNames[date.getDay()],
+      isWeekend: date.getDay() === 0 || date.getDay() === 6,
+    };
+  });
+
+  return {
+    isoYear,
+    isoWeek,
+    isoWeekLabel: `${isoYear}-W${pad(isoWeek)}`,
+    startDate: toDateKey(start),
+    endDate: toDateKey(end),
+    rangeLabel: `${toDateKey(start)} to ${toDateKey(end)}`,
+    days,
+  };
 }
 
 function formatRemaining(milliseconds: number): string {
@@ -935,6 +994,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:week-shift") {
       const payload = calculateWeekShift(message.payload as WeekShiftRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:week-shift:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:week-range") {
+      const payload = calculateWeekRange(message.payload as WeekRangeRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:week-range:result", payload });
       return;
     }
 

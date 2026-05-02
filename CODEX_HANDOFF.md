@@ -57,8 +57,10 @@ git push
 Route: `http://127.0.0.1:5173/#engineering-tools`
 
 - WorkWeek / Shift Calculator
-  - Year and WorkWeek are split into separate tiles.
+  - Shows date-to-WorkWeek output with a monthly calendar and WorkWeek column.
+  - Includes a WorkWeek-to-date range converter for ISO year + WorkWeek inputs.
   - Uses `tool:week-shift` in `compute-worker`.
+  - Uses `tool:week-range` in `compute-worker`.
 - Duration Calculator
   - Start and End inputs are equal width.
   - Break minutes is displayed as a tile aligned with Crosses midnight.
