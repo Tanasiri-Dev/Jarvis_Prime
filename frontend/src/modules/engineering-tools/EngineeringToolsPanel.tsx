@@ -1349,19 +1349,17 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
               <div className="workweek-calendar-header">
                 <button
                   aria-label="Previous month"
+                  className="month-nav-button month-nav-previous"
                   type="button"
                   onClick={() => setWorkweekMonthOffset((current) => current - 1)}
-                >
-                  ‹
-                </button>
+                />
                 <span>{workweekCalendar.monthLabel}</span>
                 <button
                   aria-label="Next month"
+                  className="month-nav-button month-nav-next"
                   type="button"
                   onClick={() => setWorkweekMonthOffset((current) => current + 1)}
-                >
-                  ›
-                </button>
+                />
                 <strong>WW{String(workweekCalendar.selectedWeek).padStart(2, "0")}</strong>
               </div>
               <div className="workweek-calendar-grid" aria-label="Monthly calendar with WorkWeek">
