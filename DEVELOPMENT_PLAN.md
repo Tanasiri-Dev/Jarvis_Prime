@@ -22,6 +22,7 @@ Completed baseline items:
 - FastAPI health skeleton added.
 - React shell, WorkerHost, ModuleRegistry, and OffscreenCanvas render-worker proof added.
 - Docker Compose and CI scaffold added.
+- Engineering tool prototype is expanding from reviewed option notes dated May 2026.
 
 ---
 
@@ -86,12 +87,15 @@ Deliverables:
 - Task priority, due date, status, owner, tags.
 - Shift handover notes.
 - Reminder and follow-up queue.
+- Lightweight meeting room booking view with calendar availability.
+- Mock meeting rooms for first UI slice: Phuket, Pattaya, Singha, Chang.
 - AI-ready task extraction interface, with mock provider first if needed.
 - Worker-backed client-side sorting, filtering, and large-list processing.
 
 Acceptance:
 
 - Users can manage daily work from the first screen after login.
+- Users can see room availability and reserve a meeting room in a prototype flow.
 - Dashboard remains responsive with large task lists.
 - Permissions prevent viewers from editing tasks.
 - Tests cover task CRUD, assignment, and RBAC.
@@ -104,15 +108,20 @@ Goal: provide practical tools for engineers and operators.
 
 Initial tools:
 
-- Date, week, shift, and duration calculator.
+- Date, WorkWeek, shift, and duration calculator.
+- WorkWeek date-to-week and week-to-date range converter.
+- Time utilities: sum hours, convert time, work hours, add hours, subtract hours, count dates.
+- Age calculator.
 - Unit converter.
 - Yield and scrap calculator. (Implemented in Phase 0 tool library prototype)
 - Capacity, takt, and loading planner. (Implemented in Phase 0 tool library prototype)
+- OEE and downtime calculator.
 - SPC quick helper.
 - Alarm code decoder.
 - Log parser.
 - Recipe compare.
 - File checksum and metadata viewer.
+- Public holiday lookup by city or country.
 
 Architecture:
 
@@ -120,12 +129,16 @@ Architecture:
 - Heavy file parsing runs in a compute worker.
 - Large visualizations render through OffscreenCanvas.
 - Tools can run without factory connection.
+- Tool Library can be filtered by audience such as All, Engineer, Planner, and Operator.
 
 Acceptance:
 
 - Tool library loads quickly and lazy-loads individual tools.
 - Large files do not block UI.
 - Tool results can be copied, exported, or attached to a task.
+- Stopwatch supports keyboard shortcuts: Space for start/stop, L for lap, R for reset, F for full screen.
+- Stopwatch lap history highlights faster/slower lap performance with clear colors.
+- Public holiday lookup supports at least one seeded city list and gracefully handles missing data.
 
 ---
 
@@ -149,6 +162,27 @@ Acceptance:
 - Sensitive payload policy is testable.
 - AI outputs are clearly marked as suggestions.
 - Risky actions require human approval.
+
+---
+
+## Phase 4A - Internationalization
+
+Goal: make Jarvis Prime usable for multilingual factory teams.
+
+Deliverables:
+
+- Frontend translation dictionary and locale switcher.
+- Initial languages: English and Thai.
+- Locale-aware date, time, number, and WorkWeek labels.
+- Persisted user language preference.
+- Translation coverage for navigation, tool labels, status labels, and common validation messages.
+
+Acceptance:
+
+- Users can switch language without page reload.
+- Tool calculations remain locale-safe and do not depend on display text.
+- Missing translations fall back to English.
+- Date/time display is consistent with selected locale and timezone.
 
 ---
 
@@ -276,6 +310,17 @@ Acceptance:
 7. Add Engineering Tools.
 8. Add AI governance layer.
 9. Add factory integration.
+
+## Near-Term Tool Build Order
+
+1. OEE / downtime calculator.
+2. Stopwatch keyboard shortcuts, full screen, and lap performance highlighting.
+3. WorkWeek to date range converter.
+4. Expanded duration/time utilities: sum hours, add/subtract hours, work hours, count dates.
+5. Public holiday lookup by city.
+6. SPC quick helper.
+7. Meeting room calendar mockup with Phuket, Pattaya, Singha, and Chang.
+8. CSV and log quick parser after sample logs are available.
 
 ---
 
