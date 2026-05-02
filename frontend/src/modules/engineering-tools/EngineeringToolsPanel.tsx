@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AlarmDecodeResultPayload,
+  CapacityPlanResultPayload,
   DurationResultPayload,
   FactoryClockResultPayload,
   RenderStatusName,
@@ -20,6 +21,15 @@ type EngineeringToolsPanelProps = {
 };
 
 type ToolStatus = "idle" | "running" | "ready" | "error";
+type ToolAudience = "engineer" | "planner" | "operator";
+type ToolFilter = "all" | ToolAudience;
+
+type ToolOption = {
+  id: ActiveTool;
+  label: string;
+  category: string;
+  audiences: ToolAudience[];
+};
 
 type StopwatchLap = {
   id: number;
@@ -61,33 +71,33 @@ type ActiveTool =
   | "alarm-decoder"
   | "unit-converter"
   | "yield-calculator"
+  | "capacity-planner"
   | "online-alarm"
   | "countdown-timer";
 
 type StopwatchActionVariant = "start" | "stop" | "lap" | "reset" | "export";
 
-const toolOptions: Array<{ id: ActiveTool; label: string; category: string }> = [
-  { id: "workweek", label: "WorkWeek", category: "Week" },
-  { id: "duration", label: "Duration Calculator", category: "Day" },
-  { id: "factory-clock", label: "Factory Clock", category: "Time" },
-  { id: "timezone", label: "Timezone Converter", category: "Time" },
-  { id: "stopwatch", label: "Stopwatch", category: "Time" },
-  { id: "online-alarm", label: "Online Alarm", category: "Time" },
-  { id: "countdown-timer", label: "Countdown Timer", category: "Time" },
-  { id: "unit-converter", label: "Unit Converter", category: "Unit Convert" },
-  { id: "yield-calculator", label: "Yield / Scrap / UPH", category: "Unit Convert" },
-  { id: "alarm-decoder", label: "Alarm Decoder", category: "Decoder" },
+const toolOptions: ToolOption[] = [
+  { id: "workweek", label: "WorkWeek", category: "Week", audiences: ["engineer", "planner", "operator"] },
+  { id: "duration", label: "Duration Calculator", category: "Day", audiences: ["engineer", "planner"] },
+  { id: "factory-clock", label: "Factory Clock", category: "Time", audiences: ["engineer", "planner", "operator"] },
+  { id: "timezone", label: "Timezone Converter", category: "Time", audiences: ["engineer", "planner"] },
+  { id: "stopwatch", label: "Stopwatch", category: "Time", audiences: ["engineer", "operator"] },
+  { id: "online-alarm", label: "Online Alarm", category: "Time", audiences: ["engineer", "planner", "operator"] },
+  { id: "countdown-timer", label: "Countdown Timer", category: "Time", audiences: ["engineer", "operator"] },
+  { id: "unit-converter", label: "Unit Converter", category: "Unit Convert", audiences: ["engineer"] },
+  { id: "yield-calculator", label: "Yield / Scrap / UPH", category: "Manufacturing", audiences: ["engineer", "planner"] },
+  { id: "capacity-planner", label: "Capacity / Takt Planner", category: "Manufacturing", audiences: ["planner", "engineer"] },
+  { id: "alarm-decoder", label: "Alarm Decoder", category: "Decoder", audiences: ["engineer", "operator"] },
 ];
 
-const toolGroups: Array<{ label: string; tools: typeof toolOptions }> = [
-  { label: "Week", tools: toolOptions.filter((tool) => tool.category === "Week") },
-  { label: "Day", tools: toolOptions.filter((tool) => tool.category === "Day") },
-  { label: "Time", tools: toolOptions.filter((tool) => tool.category === "Time") },
-  {
-    label: "Unit Convert",
-    tools: toolOptions.filter((tool) => tool.category === "Unit Convert"),
-  },
-  { label: "Decoder", tools: toolOptions.filter((tool) => tool.category === "Decoder") },
+const toolCategoryOrder = ["Week", "Day", "Time", "Unit Convert", "Manufacturing", "Decoder"];
+
+const toolFilterOptions: Array<{ id: ToolFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "engineer", label: "Engineer" },
+  { id: "planner", label: "Planner" },
+  { id: "operator", label: "Operator" },
 ];
 
 const alarmSoundOptions = [
@@ -576,7 +586,15 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [yieldScrapQuantity, setYieldScrapQuantity] = useState(40);
   const [yieldRuntimeMinutes, setYieldRuntimeMinutes] = useState(480);
   const [yieldTargetUph, setYieldTargetUph] = useState(115);
+  const [capacityDemand, setCapacityDemand] = useState(5000);
+  const [capacityPlannedHours, setCapacityPlannedHours] = useState(24);
+  const [capacityTools, setCapacityTools] = useState(3);
+  const [capacityOperators, setCapacityOperators] = useState(3);
+  const [capacityTargetUph, setCapacityTargetUph] = useState(80);
+  const [capacityEfficiency, setCapacityEfficiency] = useState(85);
+  const [capacityDowntimeMinutes, setCapacityDowntimeMinutes] = useState(60);
   const [workweekMonthOffset, setWorkweekMonthOffset] = useState(0);
+  const [toolFilter, setToolFilter] = useState<ToolFilter>("all");
   const [alarmClockNow, setAlarmClockNow] = useState(() => new Date());
   const [alarmHour, setAlarmHour] = useState("07");
   const [alarmMinute, setAlarmMinute] = useState("00");
@@ -622,6 +640,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [alarmResult, setAlarmResult] = useState<AlarmDecodeResultPayload | null>(null);
   const [unitResult, setUnitResult] = useState<UnitConvertResultPayload | null>(null);
   const [yieldResult, setYieldResult] = useState<YieldCalculateResultPayload | null>(null);
+  const [capacityResult, setCapacityResult] = useState<CapacityPlanResultPayload | null>(null);
   const [status, setStatus] = useState<ToolStatus>("idle");
   const [durationStatus, setDurationStatus] = useState<ToolStatus>("idle");
   const [timezoneStatus, setTimezoneStatus] = useState<ToolStatus>("idle");
@@ -629,6 +648,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [alarmStatus, setAlarmStatus] = useState<ToolStatus>("idle");
   const [unitStatus, setUnitStatus] = useState<ToolStatus>("idle");
   const [yieldStatus, setYieldStatus] = useState<ToolStatus>("idle");
+  const [capacityStatus, setCapacityStatus] = useState<ToolStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
@@ -636,6 +656,7 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
   const [alarmError, setAlarmError] = useState<string | null>(null);
   const [unitError, setUnitError] = useState<string | null>(null);
   const [yieldError, setYieldError] = useState<string | null>(null);
+  const [capacityError, setCapacityError] = useState<string | null>(null);
   const [isStopwatchRunning, setIsStopwatchRunning] = useState(false);
   const [stopwatchStartedAt, setStopwatchStartedAt] = useState<number | null>(null);
   const [stopwatchBaseMs, setStopwatchBaseMs] = useState(0);
@@ -756,6 +777,43 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       yieldScrapQuantity,
       yieldTargetUph,
     ],
+  );
+  const capacityPayload = useMemo(
+    () => ({
+      demandQuantity: capacityDemand,
+      plannedHours: capacityPlannedHours,
+      availableTools: capacityTools,
+      operators: capacityOperators,
+      targetUphPerTool: capacityTargetUph,
+      efficiencyPercent: capacityEfficiency,
+      downtimeMinutes: capacityDowntimeMinutes,
+    }),
+    [
+      capacityDemand,
+      capacityDowntimeMinutes,
+      capacityEfficiency,
+      capacityOperators,
+      capacityPlannedHours,
+      capacityTargetUph,
+      capacityTools,
+    ],
+  );
+  const filteredToolOptions = useMemo(
+    () =>
+      toolOptions.filter((tool) =>
+        toolFilter === "all" ? true : tool.audiences.includes(toolFilter),
+      ),
+    [toolFilter],
+  );
+  const toolGroups = useMemo(
+    () =>
+      toolCategoryOrder
+        .map((category) => ({
+          label: category,
+          tools: filteredToolOptions.filter((tool) => tool.category === category),
+        }))
+        .filter((group) => group.tools.length > 0),
+    [filteredToolOptions],
   );
   const nextAlarm = useMemo(() => {
     const enabledAlarms = onlineAlarms.filter((alarm) => alarm.enabled);
@@ -1031,6 +1089,38 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
       window.clearTimeout(timeoutId);
     };
   }, [workerHost, yieldPayload]);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setCapacityStatus("running");
+    setCapacityError(null);
+
+    const timeoutId = window.setTimeout(() => {
+      void workerHost
+        .post<CapacityPlanResultPayload>("compute", "tool:capacity-plan", capacityPayload)
+        .then((payload) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setCapacityResult(payload);
+          setCapacityStatus("ready");
+        })
+        .catch((reason: unknown) => {
+          if (!isCurrent) {
+            return;
+          }
+
+          setCapacityStatus("error");
+          setCapacityError(reason instanceof Error ? reason.message : "Unable to calculate capacity.");
+        });
+    }, 120);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [capacityPayload, workerHost]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -2270,10 +2360,158 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
           </div>
         </article>
         ) : null}
+
+        {activeTool === "capacity-planner" ? (
+        <article className="panel tool-card capacity-tool">
+          <div className="tool-card-header">
+            <div>
+              <p className="eyebrow">Planner</p>
+              <h3>Capacity / Takt / Loading Planner</h3>
+            </div>
+            <StatusChip status={capacityStatus} workerHost={workerHost} />
+          </div>
+
+          <div className="tool-form capacity-form">
+            <label>
+              <span>Demand quantity</span>
+              <input
+                min="0"
+                type="number"
+                value={capacityDemand}
+                onChange={(event) => setCapacityDemand(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Planned hours</span>
+              <input
+                min="0"
+                type="number"
+                value={capacityPlannedHours}
+                onChange={(event) => setCapacityPlannedHours(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Tools</span>
+              <input
+                min="0"
+                type="number"
+                value={capacityTools}
+                onChange={(event) => setCapacityTools(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Operators</span>
+              <input
+                min="0"
+                type="number"
+                value={capacityOperators}
+                onChange={(event) => setCapacityOperators(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>UPH / tool</span>
+              <input
+                min="0"
+                type="number"
+                value={capacityTargetUph}
+                onChange={(event) => setCapacityTargetUph(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Efficiency %</span>
+              <input
+                min="0"
+                type="number"
+                value={capacityEfficiency}
+                onChange={(event) => setCapacityEfficiency(Number(event.target.value))}
+              />
+            </label>
+
+            <label>
+              <span>Downtime min</span>
+              <input
+                min="0"
+                type="number"
+                value={capacityDowntimeMinutes}
+                onChange={(event) => setCapacityDowntimeMinutes(Number(event.target.value))}
+              />
+            </label>
+          </div>
+
+          {capacityError ? <div className="error-note">{capacityError}</div> : null}
+
+          <div className={`capacity-hero capacity-status-${capacityResult?.status ?? "info"}`} aria-live="polite">
+            <span>Plan coverage</span>
+            <strong>{capacityResult ? capacityResult.metrics[0].value : "--"}</strong>
+            <p>{capacityResult?.summary ?? "Enter demand and available resources to calculate the plan."}</p>
+          </div>
+
+          <div className="yield-metric-grid">
+            {capacityResult?.metrics.map((metric) => (
+              <article className={`yield-metric-card yield-tone-${metric.tone}`} key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+              </article>
+            )) ?? null}
+          </div>
+
+          <div className="alarm-detail-grid">
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Loading summary</span>
+                <strong>{capacityResult?.status ?? "--"}</strong>
+              </div>
+              <div className="yield-reconcile-list">
+                <div>
+                  <span>Staffed tools</span>
+                  <strong>{capacityResult?.staffedTools ?? "--"}</strong>
+                </div>
+                <div>
+                  <span>Net hours</span>
+                  <strong>{capacityResult ? `${capacityResult.netHours.toFixed(2)} hr` : "--"}</strong>
+                </div>
+                <div>
+                  <span>Capacity gap</span>
+                  <strong>{capacityResult?.capacityGap ?? "--"}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="history-panel">
+              <div className="history-header">
+                <span>Recommended actions</span>
+                <strong>{capacityResult?.recommendedActions.length ?? 0}</strong>
+              </div>
+              <ol className="alarm-action-list">
+                {capacityResult?.recommendedActions.map((action) => (
+                  <li key={action}>{action}</li>
+                )) ?? null}
+              </ol>
+            </section>
+          </div>
+        </article>
+        ) : null}
         </div>
 
         <aside className="panel tool-library">
           <p className="eyebrow">Tool Library</p>
+          <div className="tool-filter" aria-label="Filter tools by role">
+            {toolFilterOptions.map((filter) => (
+              <button
+                key={filter.id}
+                aria-pressed={toolFilter === filter.id}
+                type="button"
+                onClick={() => setToolFilter(filter.id)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
           <div className="tool-picker" role="listbox" aria-label="Engineering tool picker">
             {toolGroups.map((group) => (
               <div className="tool-picker-group" key={group.label}>
@@ -2296,7 +2534,8 @@ export function EngineeringToolsPanel({ workerHost }: EngineeringToolsPanelProps
 
           <p className="eyebrow library-subtitle">Coming next</p>
           <ul>
-            <li>Yield / scrap / UPH calculator</li>
+            <li>OEE / downtime calculator</li>
+            <li>SPC quick helper</li>
             <li>CSV and log quick parser</li>
           </ul>
         </aside>

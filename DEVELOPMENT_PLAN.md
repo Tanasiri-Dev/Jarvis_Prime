@@ -107,6 +107,7 @@ Initial tools:
 - Date, week, shift, and duration calculator.
 - Unit converter.
 - Yield and scrap calculator. (Implemented in Phase 0 tool library prototype)
+- Capacity, takt, and loading planner. (Implemented in Phase 0 tool library prototype)
 - SPC quick helper.
 - Alarm code decoder.
 - Log parser.

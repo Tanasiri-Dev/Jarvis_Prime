@@ -174,6 +174,40 @@ export interface YieldCalculateResultPayload {
   recommendedActions: string[];
 }
 
+export interface CapacityPlanRequestPayload {
+  demandQuantity: number;
+  plannedHours: number;
+  availableTools: number;
+  operators: number;
+  targetUphPerTool: number;
+  efficiencyPercent: number;
+  downtimeMinutes: number;
+}
+
+export type CapacityPlanStatus = "covered" | "tight" | "short" | "info";
+
+export interface CapacityPlanMetric {
+  label: string;
+  value: string;
+  tone: "good" | "warning" | "danger" | "neutral";
+}
+
+export interface CapacityPlanResultPayload {
+  demandQuantity: number;
+  staffedTools: number;
+  netHours: number;
+  totalCapacity: number;
+  capacityGap: number;
+  loadPercent: number;
+  requiredTools: number;
+  requiredRunHours: number;
+  taktSeconds: number;
+  status: CapacityPlanStatus;
+  summary: string;
+  metrics: CapacityPlanMetric[];
+  recommendedActions: string[];
+}
+
 export interface RenderInitPayload {
   canvas: OffscreenCanvas;
   width: number;

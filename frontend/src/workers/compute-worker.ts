@@ -1,6 +1,9 @@
 import type {
   AlarmDecodeRequestPayload,
   AlarmDecodeResultPayload,
+  CapacityPlanRequestPayload,
+  CapacityPlanResultPayload,
+  CapacityPlanStatus,
   DurationRequestPayload,
   DurationResultPayload,
   FactoryClockRequestPayload,
@@ -771,6 +774,155 @@ function calculateYield(payload: YieldCalculateRequestPayload): YieldCalculateRe
   };
 }
 
+function formatHours(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+
+  return `${formatNumber(value)} hr`;
+}
+
+function formatSeconds(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+
+  if (value >= 60) {
+    return `${formatNumber(value / 60)} min`;
+  }
+
+  return `${formatNumber(value)} sec`;
+}
+
+function calculateCapacityPlan(payload: CapacityPlanRequestPayload): CapacityPlanResultPayload {
+  const demandQuantity = Number(payload.demandQuantity);
+  const plannedHours = Number(payload.plannedHours);
+  const availableTools = Number(payload.availableTools);
+  const operators = Number(payload.operators);
+  const targetUphPerTool = Number(payload.targetUphPerTool);
+  const efficiencyPercent = Number(payload.efficiencyPercent);
+  const downtimeMinutes = Number(payload.downtimeMinutes);
+  const values = [
+    demandQuantity,
+    plannedHours,
+    availableTools,
+    operators,
+    targetUphPerTool,
+    efficiencyPercent,
+    downtimeMinutes,
+  ];
+
+  if (values.some((value) => !Number.isFinite(value))) {
+    throw new Error("Enter valid numeric values for capacity planning.");
+  }
+
+  if (values.some((value) => value < 0)) {
+    throw new Error("Planning inputs cannot be negative.");
+  }
+
+  const staffedTools = Math.max(0, Math.min(Math.floor(availableTools), Math.floor(operators)));
+  const netHours = Math.max(0, plannedHours - downtimeMinutes / 60);
+  const efficiency = Math.max(0, efficiencyPercent) / 100;
+  const perToolCapacity = targetUphPerTool * netHours * efficiency;
+  const totalCapacity = staffedTools * perToolCapacity;
+  const capacityGap = totalCapacity - demandQuantity;
+  const loadPercent = totalCapacity > 0 ? (demandQuantity / totalCapacity) * 100 : 0;
+  const requiredTools = perToolCapacity > 0 ? Math.ceil(demandQuantity / perToolCapacity) : 0;
+  const hourlyCapacity = staffedTools * targetUphPerTool * efficiency;
+  const requiredRunHours = hourlyCapacity > 0 ? demandQuantity / hourlyCapacity : 0;
+  const taktSeconds = demandQuantity > 0 && netHours > 0 ? (netHours * 3600) / demandQuantity : 0;
+
+  let status: CapacityPlanStatus = "info";
+
+  if (demandQuantity > 0 && totalCapacity > 0) {
+    status = capacityGap >= 0 ? "covered" : totalCapacity >= demandQuantity * 0.95 ? "tight" : "short";
+  }
+
+  const recommendations: string[] = [];
+
+  if (availableTools > operators) {
+    recommendations.push("Operator coverage limits staffed tools. Add operator support or rebalance assignments.");
+  }
+
+  if (capacityGap < 0) {
+    recommendations.push("Add tools, overtime, or split demand across another shift to close the capacity gap.");
+  }
+
+  if (downtimeMinutes > plannedHours * 60 * 0.15) {
+    recommendations.push("Planned downtime is above 15% of the window. Review PM and setup timing.");
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push("Plan is covered. Keep monitoring demand changes and downtime risk.");
+  }
+
+  const summary =
+    status === "covered"
+      ? "Capacity covers the demand window."
+      : status === "tight"
+        ? "Plan is close to demand. Watch staffing and downtime."
+        : status === "short"
+          ? "Capacity is short. Add hours, tools, or reduce demand."
+          : "Add demand, hours, tools, and UPH to calculate the plan.";
+
+  return {
+    demandQuantity,
+    staffedTools,
+    netHours,
+    totalCapacity,
+    capacityGap,
+    loadPercent,
+    requiredTools,
+    requiredRunHours,
+    taktSeconds,
+    status,
+    summary,
+    metrics: [
+      {
+        label: "Capacity",
+        value: formatNumber(totalCapacity),
+        tone: capacityGap >= 0 ? "good" : totalCapacity >= demandQuantity * 0.95 ? "warning" : "danger",
+      },
+      {
+        label: "Demand",
+        value: formatNumber(demandQuantity),
+        tone: "neutral",
+      },
+      {
+        label: "Gap",
+        value: `${capacityGap >= 0 ? "+" : ""}${formatNumber(capacityGap)}`,
+        tone: capacityGap >= 0 ? "good" : capacityGap >= -demandQuantity * 0.05 ? "warning" : "danger",
+      },
+      {
+        label: "Load",
+        value: formatPercent(loadPercent),
+        tone: loadPercent <= 90 ? "good" : loadPercent <= 100 ? "warning" : "danger",
+      },
+      {
+        label: "Required tools",
+        value: formatNumber(requiredTools),
+        tone: requiredTools <= staffedTools ? "good" : requiredTools <= availableTools ? "warning" : "danger",
+      },
+      {
+        label: "Takt",
+        value: formatSeconds(taktSeconds),
+        tone: "neutral",
+      },
+      {
+        label: "Net window",
+        value: formatHours(netHours),
+        tone: "neutral",
+      },
+      {
+        label: "Run hours needed",
+        value: formatHours(requiredRunHours),
+        tone: requiredRunHours <= netHours ? "good" : "danger",
+      },
+    ],
+    recommendedActions: recommendations,
+  };
+}
+
 scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
   const message = event.data;
 
@@ -821,6 +973,12 @@ scope.onmessage = (event: MessageEvent<WorkerEnvelope>) => {
     if (message.type === "tool:yield-calculate") {
       const payload = calculateYield(message.payload as YieldCalculateRequestPayload);
       scope.postMessage({ id: message.id, type: "tool:yield-calculate:result", payload });
+      return;
+    }
+
+    if (message.type === "tool:capacity-plan") {
+      const payload = calculateCapacityPlan(message.payload as CapacityPlanRequestPayload);
+      scope.postMessage({ id: message.id, type: "tool:capacity-plan:result", payload });
       return;
     }
 

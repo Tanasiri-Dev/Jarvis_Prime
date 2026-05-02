@@ -1768,6 +1768,10 @@ a {
   grid-template-columns: repeat(5, minmax(140px, 1fr));
 }
 
+.capacity-form {
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+}
+
 .yield-hero {
   display: grid;
   gap: 10px;
@@ -1781,6 +1785,40 @@ a {
   padding: 24px;
   place-items: center;
   text-align: center;
+}
+
+.capacity-hero {
+  display: grid;
+  gap: 10px;
+  min-height: 190px;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent-soft), white 8%), transparent 44%),
+    linear-gradient(135deg, var(--surface-control), transparent),
+    var(--surface-panel);
+  padding: 24px;
+  place-items: center;
+  text-align: center;
+}
+
+.capacity-hero span,
+.capacity-hero p {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.capacity-hero span {
+  text-transform: uppercase;
+}
+
+.capacity-hero strong {
+  color: var(--text-primary);
+  font-size: clamp(42px, 6vw, 74px);
+  line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 .yield-hero span,
@@ -1811,6 +1849,18 @@ a {
 }
 
 .yield-status-risk {
+  border-color: color-mix(in srgb, #fb7185, transparent 22%);
+}
+
+.capacity-status-covered {
+  border-color: color-mix(in srgb, var(--success), transparent 30%);
+}
+
+.capacity-status-tight {
+  border-color: color-mix(in srgb, #facc15, transparent 25%);
+}
+
+.capacity-status-short {
   border-color: color-mix(in srgb, #fb7185, transparent 22%);
 }
 
@@ -2156,6 +2206,40 @@ a {
   margin-top: 12px;
 }
 
+.tool-filter {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tool-filter button {
+  min-height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.tool-filter button:hover {
+  border-color: var(--brand-border);
+  box-shadow: 0 0 22px var(--glow-cyan);
+}
+
+.tool-filter button[aria-pressed="true"] {
+  border-color: var(--brand-border);
+  background: var(--accent-soft);
+  color: var(--brand-text);
+}
+
 .tool-picker-group {
   display: grid;
   gap: 8px;
@@ -2323,6 +2407,7 @@ a {
   .timezone-add-panel,
   .unit-form,
   .yield-form,
+  .capacity-form,
   .alarm-builder,
   .countdown-builder,
   .alarm-result-grid,

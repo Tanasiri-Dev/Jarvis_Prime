@@ -97,6 +97,10 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
   - Calculates yield percent, scrap percent, actual UPH, total UPH, target gap, projected target output, and quantity reconciliation.
   - Shows line-performance status and recommended actions for variance, scrap, and throughput risk.
   - Uses `tool:yield-calculate` in `compute-worker`.
+- Capacity / Takt / Loading Planner
+  - Calculates staffed tools, net production window, total capacity, capacity gap, load percent, required tools, required run hours, and takt.
+  - Designed for Planner and Manufacturing Engineer use cases.
+  - Uses `tool:capacity-plan` in `compute-worker`.
 
 ## UI System Notes
 
@@ -106,31 +110,33 @@ Route: `http://127.0.0.1:5173/#engineering-tools`
 - Theme styling is tokenized in `frontend/src/app/App.css`.
 - Tool status chips use small OffscreenCanvas lights rendered by `render-worker`; `running` chips add a passing light scan, while `ready/online` use a check-style status light.
 - Tool Library is on the right and selects one active tool at a time.
-- Tool Library groups are ordered: Week, Day, Time, Unit Convert, Decoder.
+- Tool Library groups are ordered: Week, Day, Time, Unit Convert, Manufacturing, Decoder.
+- Tool Library includes role filters: All, Engineer, Planner, Operator.
 - Tool Library has an independent constrained scroll container and reveals its vertical scrollbar only on hover/focus.
 - Avoid showing all tools at once. Add new tools as selectable tool cards.
 - Preserve responsive layouts.
 
 ## Recommended Next Tool
 
-Add `CSV and log quick parser` next.
+Add `OEE / downtime calculator` next.
 
 Suggested first fields:
 
-- Paste area for raw CSV/log text
-- File name or source note
-- Parser mode: CSV, key-value log, alarm/event log
-- Delimiter selector for CSV
-- Preview row limit
+- Planned production time
+- Downtime minutes
+- Ideal cycle time or target UPH
+- Total count
+- Good count
+- Downtime reason summary
 
 Suggested implementation pattern:
 
-1. Add `csv-log-parser` to `ActiveTool`.
-2. Add item to `toolOptions` under a new or existing parser/log group after Decoder if the user approves the grouping.
+1. Add `oee-calculator` to `ActiveTool`.
+2. Add item to `toolOptions` under `Manufacturing` for Engineer and Planner.
 3. Add request/result types in `frontend/src/core/worker-messages.ts`.
-4. Add `tool:parse-log` handler in `frontend/src/workers/compute-worker.ts`.
-5. Keep parsing in worker and return a small preview plus summary metrics to the UI.
-6. Add export support after the preview is stable.
+4. Add `tool:oee-calculate` handler in `frontend/src/workers/compute-worker.ts`.
+5. Return Availability, Performance, Quality, OEE, top downtime reason, and recommended actions.
+6. Add export/copy result after the calculation is stable.
 7. Run `npm run typecheck` and `npm run build`.
 8. Commit and push.
 
