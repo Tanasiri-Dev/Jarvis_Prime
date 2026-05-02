@@ -458,15 +458,15 @@ export function PublicHolidayPanel({ workerHost }: { workerHost: WorkerHost }) {
                     className={holiday.isUpcoming ? "holiday-item upcoming" : "holiday-item"}
                     key={`${holiday.date}-${holiday.name}`}
                   >
-                    <div>
+                    <div className="holiday-item-date">
                       <strong>{holiday.dayLabel}</strong>
                       <span>{holiday.date}</span>
                     </div>
-                    <div>
+                    <small>{holiday.scopeLabel}</small>
+                    <div className="holiday-item-title">
                       <strong>{holiday.name}</strong>
                       <span>{holiday.localName}</span>
                     </div>
-                    <small>{holiday.scopeLabel}</small>
                   </article>
                 ))}
               </div>

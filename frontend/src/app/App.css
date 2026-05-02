@@ -3016,19 +3016,27 @@ a {
 
 .holiday-item {
   display: grid;
-  grid-template-columns: minmax(74px, 0.3fr) minmax(0, 1fr) minmax(72px, auto);
-  gap: 10px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "date scope"
+    "title title";
+  gap: 10px 12px;
+  align-items: start;
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-panel), transparent 16%);
-  padding: 10px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent-soft), transparent 18%), transparent 48%),
+    color-mix(in srgb, var(--surface-panel), transparent 10%);
+  padding: 14px 12px;
 }
 
 .holiday-item.upcoming {
   border-color: var(--brand-border);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--glow-cyan), transparent 34%), transparent 48%),
+    color-mix(in srgb, var(--surface-active), var(--surface-control) 72%);
   box-shadow: 0 0 26px color-mix(in srgb, var(--glow-cyan), transparent 22%);
 }
 
@@ -3038,14 +3046,28 @@ a {
   min-width: 0;
 }
 
-.holiday-item strong {
-  color: var(--text-primary);
+.holiday-item-date {
+  grid-area: date;
+}
+
+.holiday-item-date strong {
   font-size: 13px;
-  line-height: 1.18;
+  line-height: 1.22;
+}
+
+.holiday-item-title {
+  grid-area: title;
+}
+
+.holiday-item-title strong {
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.24;
   overflow-wrap: anywhere;
 }
 
-.holiday-item span,
+.holiday-item-date span,
+.holiday-item-title span,
 .holiday-item small {
   color: var(--text-muted);
   font-size: 11px;
@@ -3054,6 +3076,7 @@ a {
 }
 
 .holiday-item small {
+  grid-area: scope;
   justify-self: end;
   max-width: 100%;
   overflow: hidden;
