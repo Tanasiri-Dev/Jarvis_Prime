@@ -7,8 +7,13 @@ Use this file to resume development quickly with Codex without restating the who
 - Repository: `D:\Development\Jarvis Prime`
 - Remote: `git@github.com:Tanasiri-Dev/Jarvis_Prime.git`
 - Main branch: `master`
+- Last pushed commit: `9c951ea feat(i18n): translate core engineering tool details`
 - Frontend dev URL: `http://127.0.0.1:5173/`
-- Primary app route for current work: `#public-holidays`
+- Primary app route for current work: `#engineering-tools`
+- Current development focus: Phase 4A Internationalization coverage for remaining Engineering Tools.
+- Known untracked local files intentionally left untouched:
+  - `docs/Options Noted for Develop.docx`
+  - `docs/Options Noted for Develop.pdf`
 
 ## Architecture Rules To Preserve
 
@@ -26,6 +31,8 @@ Use this file to resume development quickly with Codex without restating the who
   - `frontend/src/core/worker-messages.ts`
 - Internationalization foundation lives in:
   - `frontend/src/core/i18n.ts`
+- App shell routes and language/theme switching live in:
+  - `frontend/src/app/App.tsx`
 - Tool calculations currently live in:
   - `frontend/src/workers/compute-worker.ts`
 
@@ -149,6 +156,7 @@ Route: `http://127.0.0.1:5173/#public-holidays`
 - Language preference is stored in `localStorage` under `jarvis-prime.locale`.
 - Current translated surface includes app navigation, top bar route titles, Command Center summary, footer, theme labels, language labels, common shell text, Diagnostics labels, Public Holiday panel shell, Meeting Room panel shell/calendar labels, Engineering Tools intro/tool-library labels, plus detailed labels for WorkWeek, Duration, Stopwatch, Alarm Decoder, Unit Converter, OEE, and SPC.
 - Next i18n pass should move remaining tools such as Time Utilities, Timezone, Factory Clock, Online Alarm, Countdown, Yield, Capacity, and worker-generated metric/action labels into dictionaries.
+- Prefer passing `t` and `locale` from `App.tsx` into panels. Keep worker calculations locale-safe and avoid depending on display text.
 - Theme switcher is compact icon-only: moon for dark, sun for white.
 - Default dark theme follows the `CODEX.md` crypto-native glassmorphism direction: dark glass panels, luminous borders, sticky glass top bar, and stronger glow on hover.
 - Page header titles use gradient text, and the top toolbar uses a pure liquid glass style with blur, saturation, inner highlights, and soft reflection.
@@ -172,13 +180,43 @@ Suggested first fields:
 - Parsed rows with filtering
 - Export to CSV / Excel
 
+## Recommended Next Development Step
+
+Continue Phase 4A i18n before adding more tools.
+
+Suggested order:
+
+1. Move Time Utilities labels and empty states into `frontend/src/core/i18n.ts`.
+2. Move Timezone, Factory Clock, Online Alarm, and Countdown labels into the dictionary.
+3. Move Yield and Capacity labels into the dictionary.
+4. Decide how worker-generated metric/action labels should be localized:
+   - Option A: workers return translation keys plus values.
+   - Option B: workers return stable semantic ids and the UI maps ids to localized strings.
+5. After i18n coverage, create ADRs still missing from Phase 0:
+   - ADR-0002 Worker Message Protocol
+   - ADR-0003 OffscreenCanvas Rendering
+   - ADR-0004 Auth Session Strategy
+
 ## Latest Working Verification
 
-Before this handoff was created:
+Before this handoff update:
 
 - `npm run typecheck` passed.
 - `npm run build` passed.
-- `http://127.0.0.1:5173/#engineering-tools` responded with HTTP 200.
+- Latest verified commit in GitHub: `9c951ea`.
+
+## Recent Commit Trail
+
+```text
+9c951ea feat(i18n): translate core engineering tool details
+120f95f feat(i18n): translate panel shells
+c540124 feat(i18n): add language foundation
+f4a4d23 feat(planner): add meeting detail popover
+a24a73c feat(planner): add outlook style room calendar
+961b7c3 feat(planner): add meeting room calendar
+8acda0a feat(tools): add spc quick helper
+d8bf2fa feat(tools): add oee downtime calculator
+```
 
 ## Resume Prompt Template
 
